@@ -1610,16 +1610,12 @@ namespace E3Core.Processors
 				return false;
 			}
 
-			//force a fresh open - the spellbook always opens on page 1, so this gives us a
-			//known starting point instead of having to detect where we currently are
-			//(there's no reliable way to read a spell's name off these controls - .Text
-			//and .Tooltip are both blank, they're plain icon buttons).
-			if (MQ.Query<bool>("${Window[SpellBookWnd].Open}"))
-			{
-				MQ.Cmd("/notify SpellBookWnd SBW_DoneButton leftmouseup");
-				MQ.Delay(200);
-			}
-			MQ.Cmd("/book");
+			//jump straight to the real EQ page containing this spell (8 slots per real page) -
+			//the PageUp/PageDown buttons exist but don't respond to /notify leftmouseup on
+			//this server, /book <pagenum> is the reliable way to navigate.
+			const Int32 RealPageSize = 8;
+			Int32 realPage = (Int32)Math.Ceiling((double)bookSlot / RealPageSize);
+			MQ.Cmd($"/book {realPage}");
 			Int64 waited = 0;
 			while (!MQ.Query<bool>("${Window[SpellBookWnd].Open}") && waited < 2500)
 			{
@@ -1631,9 +1627,9 @@ namespace E3Core.Processors
 				MQ.Write("\arCould not open the spellbook.");
 				return false;
 			}
-			MQ.Delay(300); //let page 1 render
+			MQ.Delay(300); //let the page render
 
-			//figure out how many spell slots are on a page
+			//figure out how many spell slots are shown in the two-page spread -
 			//use ${Bool[...]} to test existence - touching .Name on a child that doesn't
 			//exist errors instead of returning blank on this server.
 			Int32 perPage = 0;
@@ -1643,15 +1639,6 @@ namespace E3Core.Processors
 				if (exists) { perPage++; } else { break; }
 			}
 			if (perPage == 0) perPage = 8;
-
-			Int32 targetPage = (Int32)Math.Ceiling((double)bookSlot / perPage);
-
-			//we're on page 1 fresh from the open above - page down to the target page
-			for (Int32 i = 1; i < targetPage; i++)
-			{
-				MQ.Cmd("/notify SpellBookWnd SBW_PageDown_Button leftmouseup");
-				MQ.Delay(250);
-			}
 
 			//pick up the spell off the book page, then drop it onto the gem slot
 			Int32 slotOnPage = (bookSlot - 1) % perPage;
