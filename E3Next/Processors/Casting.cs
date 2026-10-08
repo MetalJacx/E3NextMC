@@ -1628,11 +1628,13 @@ namespace E3Core.Processors
 			}
 
 			//figure out how many spell slots are on a page
+			//use ${Bool[...]} to test existence - touching .Name on a child that doesn't
+			//exist errors instead of returning blank on this server.
 			Int32 perPage = 0;
 			for (Int32 i = 0; i <= 24; i++)
 			{
-				string controlName = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{i}].Name}}");
-				if (!String.IsNullOrEmpty(controlName)) { perPage++; } else { break; }
+				bool exists = MQ.Query<bool>($"${{Bool[${{Window[SpellBookWnd].Child[SBW_Spell{i}]}}]}}");
+				if (exists) { perPage++; } else { break; }
 			}
 			if (perPage == 0) perPage = 8;
 
