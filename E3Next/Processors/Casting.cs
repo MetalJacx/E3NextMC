@@ -1523,12 +1523,12 @@ namespace E3Core.Processors
 				}
 			}
 			MQ.Write($"\aySpell not memed, meming \ag{spell.SpellName} \ayin \awGEM:{spell.SpellGem}");
-			MQ.Cmd($"/memspell {spell.SpellGem} \"{spell.SpellName}\"");
-			MQ.Delay(15000, $"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}}");
 
-			if (!MQ.Query<bool>($"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}}"))
+			//this server's /memspell text command does not reliably take - it has to be dragged
+			//from the spellbook window onto the gem slot like a real player would.
+			if (!MemorizeSpellViaSpellbookUI(spell))
 			{
-				//memorize didn't actually take (interrupted, not scribed, etc.) - don't lie to the cache
+				//memorize didn't actually take (interrupted, not scribed, window issue, etc.) - don't lie to the cache
 				MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
 				return false;
 			}
@@ -1557,6 +1557,144 @@ namespace E3Core.Processors
 			_currentSpellGems[spell.SpellGem] = spell.SpellID;
 
 			return true;
+		}
+
+		/// <summary>
+		/// Memorizes a spell by dragging it from the spellbook window onto the gem slot,
+		/// the same way the Triune server's own tac addon does it (see triune.lua runtime.tryMem).
+		/// /memspell does not reliably work on this server.
+		/// </summary>
+		private static bool MemorizeSpellViaSpellbookUI(Data.Spell spell)
+		{
+			Int32 slot = spell.SpellGem;
+			string spellName = spell.SpellName;
+
+			e3util.ClearCursor();
+
+			//unmem a duplicate of this spell in another gem slot first
+			for (Int32 s = 1; s <= 14; s++)
+			{
+				if (s == slot) continue;
+				string existingName = MQ.Query<string>($"${{Me.Gem[{s}].Name}}");
+				if (String.Equals(existingName, spellName, StringComparison.OrdinalIgnoreCase))
+				{
+					UnmemGem(s);
+					break;
+				}
+			}
+
+			//unmem whatever is currently occupying the target gem
+			string currentInGem = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+			if (!String.IsNullOrEmpty(currentInGem) && currentInGem != "NULL")
+			{
+				UnmemGem(slot);
+			}
+
+			//confirm its scribed, and find the book slot
+			Int32 bookSlot = MQ.Query<Int32>($"${{Me.Book[{spellName}]}}");
+			if (bookSlot <= 0)
+			{
+				MQ.Write($"\ar{spellName} is not scribed in the spellbook - cannot mem.");
+				return false;
+			}
+
+			if (MQ.Query<bool>("${Me.Sitting}") || MQ.Query<bool>("${Me.Ducking}"))
+			{
+				MQ.Cmd("/stand");
+				MQ.Delay(400);
+			}
+
+			if (MQ.Query<bool>("${Me.Moving}"))
+			{
+				MQ.Write($"\ayStand still to memorize {spellName}.");
+				return false;
+			}
+
+			//open the spellbook if its not already
+			if (!MQ.Query<bool>("${Window[SpellBookWnd].Open}"))
+			{
+				MQ.Cmd("/book");
+			}
+			Int64 waited = 0;
+			while (!MQ.Query<bool>("${Window[SpellBookWnd].Open}") && waited < 2500)
+			{
+				MQ.Delay(100);
+				waited += 100;
+			}
+			if (!MQ.Query<bool>("${Window[SpellBookWnd].Open}"))
+			{
+				MQ.Write("\arCould not open the spellbook.");
+				return false;
+			}
+
+			//figure out how many spell slots are on a page
+			Int32 perPage = 0;
+			for (Int32 i = 0; i <= 24; i++)
+			{
+				string controlName = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{i}].Name}}");
+				if (!String.IsNullOrEmpty(controlName)) { perPage++; } else { break; }
+			}
+			if (perPage == 0) perPage = 8;
+
+			//reset to page 1, then page down to the page our spell is on
+			for (Int32 i = 0; i < 40; i++)
+			{
+				MQ.Cmd("/notify SpellBookWnd SBW_PageUp_Button leftmouseup");
+				MQ.Delay(50);
+			}
+			Int32 targetPage = (Int32)Math.Ceiling((double)bookSlot / perPage);
+			for (Int32 i = 1; i < targetPage; i++)
+			{
+				MQ.Cmd("/notify SpellBookWnd SBW_PageDown_Button leftmouseup");
+				MQ.Delay(200);
+			}
+
+			//pick up the spell off the book page, then drop it onto the gem slot
+			Int32 slotOnPage = (bookSlot - 1) % perPage;
+			MQ.Cmd($"/notify SpellBookWnd SBW_Spell{slotOnPage} leftmouseup");
+			MQ.Delay(400);
+			MQ.Cmd($"/notify CastSpellWnd CSPW_Spell{slot - 1} leftmouseup");
+
+			//wait for the memorize progress bar to appear, then finish
+			Int64 castWindowWait = 0;
+			while (!MQ.Query<bool>("${Window[CastingWindow].Open}") && castWindowWait < 3000)
+			{
+				MQ.Delay(100);
+				castWindowWait += 100;
+			}
+			while (MQ.Query<bool>("${Window[CastingWindow].Open}"))
+			{
+				MQ.Delay(100);
+			}
+			MQ.Delay(400);
+
+			if (MQ.Query<bool>("${Window[SpellBookWnd].Open}"))
+			{
+				MQ.Cmd("/notify SpellBookWnd SBW_DoneButton leftmouseup");
+			}
+			e3util.ClearCursor();
+
+			string gemName = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+			return String.Equals(gemName, spellName, StringComparison.OrdinalIgnoreCase);
+		}
+
+		private static bool UnmemGem(Int32 slot)
+		{
+			string currentInGem = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+			if (String.IsNullOrEmpty(currentInGem) || currentInGem == "NULL") return true;
+
+			MQ.Cmd($"/notify CastSpellWnd CSPW_Spell{slot - 1} rightmouseup");
+			MQ.Delay(200);
+			Int64 waited = 0;
+			while (waited < 1000)
+			{
+				string inGem = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+				if (String.IsNullOrEmpty(inGem) || inGem == "NULL") return true;
+				MQ.Delay(100);
+				waited += 100;
+			}
+			string stillInGem = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+			return String.IsNullOrEmpty(stillInGem) || stillInGem == "NULL";
 		}
 
 		public static Boolean CheckMana(Data.Spell spell)
