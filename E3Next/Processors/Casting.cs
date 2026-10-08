@@ -1592,7 +1592,6 @@ namespace E3Core.Processors
 
 			//confirm its scribed, and find the book slot
 			Int32 bookSlot = MQ.Query<Int32>($"${{Me.Book[{spellName}]}}");
-			MQ.Write($"\aw[MemDebug] bookSlot={bookSlot}");
 			if (bookSlot <= 0)
 			{
 				MQ.Write($"\ar{spellName} is not scribed in the spellbook - cannot mem.");
@@ -1646,7 +1645,6 @@ namespace E3Core.Processors
 			if (perPage == 0) perPage = 8;
 
 			Int32 targetPage = (Int32)Math.Ceiling((double)bookSlot / perPage);
-			MQ.Write($"\aw[MemDebug] perPage={perPage} targetPage={targetPage}");
 
 			//we're on page 1 fresh from the open above - page down to the target page
 			for (Int32 i = 1; i < targetPage; i++)
@@ -1668,7 +1666,6 @@ namespace E3Core.Processors
 				MQ.Delay(100);
 				castWindowWait += 100;
 			}
-			MQ.Write($"\aw[MemDebug] castingWindowOpened={castWindowWait < 3000}");
 			while (MQ.Query<bool>("${Window[CastingWindow].Open}"))
 			{
 				MQ.Delay(100);
@@ -1682,7 +1679,6 @@ namespace E3Core.Processors
 			e3util.ClearCursor();
 
 			string gemName = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
-			MQ.Write($"\aw[MemDebug] gemNameAfter='{gemName}'");
 			return String.Equals(gemName, spellName, StringComparison.OrdinalIgnoreCase);
 		}
 
