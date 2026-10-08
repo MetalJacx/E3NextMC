@@ -1592,6 +1592,7 @@ namespace E3Core.Processors
 
 			//confirm its scribed, and find the book slot
 			Int32 bookSlot = MQ.Query<Int32>($"${{Me.Book[{spellName}]}}");
+			MQ.Write($"\aw[MemDebug] bookSlot={bookSlot}");
 			if (bookSlot <= 0)
 			{
 				MQ.Write($"\ar{spellName} is not scribed in the spellbook - cannot mem.");
@@ -1637,6 +1638,7 @@ namespace E3Core.Processors
 				if (exists) { perPage++; } else { break; }
 			}
 			if (perPage == 0) perPage = 8;
+			MQ.Write($"\aw[MemDebug] perPage={perPage}");
 
 			//reset to page 1, then page down to the page our spell is on
 			for (Int32 i = 0; i < 40; i++)
@@ -1645,6 +1647,7 @@ namespace E3Core.Processors
 				MQ.Delay(50);
 			}
 			Int32 targetPage = (Int32)Math.Ceiling((double)bookSlot / perPage);
+			MQ.Write($"\aw[MemDebug] targetPage={targetPage}");
 			for (Int32 i = 1; i < targetPage; i++)
 			{
 				MQ.Cmd("/notify SpellBookWnd SBW_PageDown_Button leftmouseup");
@@ -1653,8 +1656,11 @@ namespace E3Core.Processors
 
 			//pick up the spell off the book page, then drop it onto the gem slot
 			Int32 slotOnPage = (bookSlot - 1) % perPage;
+			string spellOnSlot = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{slotOnPage}].Text}}");
+			MQ.Write($"\aw[MemDebug] slotOnPage={slotOnPage} spellCurrentlyShownThere='{spellOnSlot}' cursorBefore={MQ.Query<Int32>("${Cursor.ID}")}");
 			MQ.Cmd($"/notify SpellBookWnd SBW_Spell{slotOnPage} leftmouseup");
 			MQ.Delay(400);
+			MQ.Write($"\aw[MemDebug] cursorAfterPickup={MQ.Query<Int32>("${Cursor.ID}")}");
 			MQ.Cmd($"/notify CastSpellWnd CSPW_Spell{slot - 1} leftmouseup");
 
 			//wait for the memorize progress bar to appear, then finish
@@ -1664,6 +1670,7 @@ namespace E3Core.Processors
 				MQ.Delay(100);
 				castWindowWait += 100;
 			}
+			MQ.Write($"\aw[MemDebug] castingWindowOpened={castWindowWait < 3000}");
 			while (MQ.Query<bool>("${Window[CastingWindow].Open}"))
 			{
 				MQ.Delay(100);
@@ -1677,6 +1684,7 @@ namespace E3Core.Processors
 			e3util.ClearCursor();
 
 			string gemName = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+			MQ.Write($"\aw[MemDebug] gemNameAfter='{gemName}'");
 			return String.Equals(gemName, spellName, StringComparison.OrdinalIgnoreCase);
 		}
 
