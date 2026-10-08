@@ -1524,12 +1524,20 @@ namespace E3Core.Processors
 			}
 			MQ.Write($"\aySpell not memed, meming \ag{spell.SpellName} \ayin \awGEM:{spell.SpellGem}");
 			MQ.Cmd($"/memspell {spell.SpellGem} \"{spell.SpellName}\"");
-			MQ.Delay(15000, $"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}} || !${{Window[SpellBookWnd].Open}}");
+			MQ.Delay(15000, $"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}}");
+
+			if (!MQ.Query<bool>($"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}}"))
+			{
+				//memorize didn't actually take (interrupted, not scribed, etc.) - don't lie to the cache
+				MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
+				return false;
+			}
+
 			if (!ignoreWait)
 			{
 				//sanity check that we stand in case something went wrong
-				//we do it in the ignorewait, because if we do ignore wait they already will do the 
-				//sit/stand as we are meming lots of spells at once. 
+				//we do it in the ignorewait, because if we do ignore wait they already will do the
+				//sit/stand as we are meming lots of spells at once.
 				MQ.Cmd("/stand");
 				MQ.Delay(3000, $"${{Me.SpellReady[${{Me.Gem[{spell.SpellGem}].Name}}]}}");
 			}

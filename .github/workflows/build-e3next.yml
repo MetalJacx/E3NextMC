@@ -1,0 +1,37 @@
+name: Build E3Next
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'E3Next/**'
+      - '.github/workflows/build-e3next.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore MQ2MonoSharp.sln
+
+      - name: Build E3Next
+        run: msbuild E3Next\E3Next.csproj /p:Configuration=Release /t:Rebuild /m
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: E3-dll
+          path: |
+            E3Next/bin/Release/E3.dll
+            E3Next/bin/Release/E3.pdb
+          if-no-files-found: error
