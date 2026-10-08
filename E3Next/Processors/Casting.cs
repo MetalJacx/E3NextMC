@@ -1611,11 +1611,16 @@ namespace E3Core.Processors
 				return false;
 			}
 
-			//open the spellbook if its not already
-			if (!MQ.Query<bool>("${Window[SpellBookWnd].Open}"))
+			//force a fresh open - the spellbook always opens on page 1, so this gives us a
+			//known starting point instead of having to detect where we currently are
+			//(there's no reliable way to read a spell's name off these controls - .Text
+			//and .Tooltip are both blank, they're plain icon buttons).
+			if (MQ.Query<bool>("${Window[SpellBookWnd].Open}"))
 			{
-				MQ.Cmd("/book");
+				MQ.Cmd("/notify SpellBookWnd SBW_DoneButton leftmouseup");
+				MQ.Delay(200);
 			}
+			MQ.Cmd("/book");
 			Int64 waited = 0;
 			while (!MQ.Query<bool>("${Window[SpellBookWnd].Open}") && waited < 2500)
 			{
@@ -1627,6 +1632,7 @@ namespace E3Core.Processors
 				MQ.Write("\arCould not open the spellbook.");
 				return false;
 			}
+			MQ.Delay(300); //let page 1 render
 
 			//figure out how many spell slots are on a page
 			//use ${Bool[...]} to test existence - touching .Name on a child that doesn't
@@ -1638,69 +1644,21 @@ namespace E3Core.Processors
 				if (exists) { perPage++; } else { break; }
 			}
 			if (perPage == 0) perPage = 8;
-			MQ.Write($"\aw[MemDebug] perPage={perPage}");
-
-			//let the page actually render before reading it
-			MQ.Delay(300);
-
-			//figure out what page we're actually on by reading what's displayed and
-			//looking it up against the book - don't just blindly click and hope.
-			Func<Int32> inferCurrentPage = () =>
-			{
-				for (Int32 i = 0; i < perPage; i++)
-				{
-					string txt = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{i}].Text}}");
-					if (!String.IsNullOrEmpty(txt))
-					{
-						Int32 bs = MQ.Query<Int32>($"${{Me.Book[{txt}]}}");
-						if (bs > 0) return (Int32)Math.Ceiling((double)bs / perPage);
-					}
-				}
-				return 0;
-			};
-
-			Int32 curPage = inferCurrentPage();
-			if (curPage <= 0)
-			{
-				//nothing displayed to infer from (empty page, or UI hasn't caught up) -
-				//nudge toward page 1 a few clicks at a time, re-checking after each one.
-				for (Int32 i = 0; i < 25 && curPage <= 0; i++)
-				{
-					MQ.Cmd("/notify SpellBookWnd SBW_PageUp_Button leftmouseup");
-					MQ.Delay(250);
-					curPage = inferCurrentPage();
-				}
-				if (curPage <= 0) curPage = 1;
-			}
-			MQ.Write($"\aw[MemDebug] curPage={curPage}");
 
 			Int32 targetPage = (Int32)Math.Ceiling((double)bookSlot / perPage);
-			MQ.Write($"\aw[MemDebug] targetPage={targetPage}");
+			MQ.Write($"\aw[MemDebug] perPage={perPage} targetPage={targetPage}");
 
-			Int32 pageDiff = targetPage - curPage;
-			string pageButton = pageDiff > 0 ? "SBW_PageDown_Button" : "SBW_PageUp_Button";
-			for (Int32 i = 0; i < Math.Abs(pageDiff); i++)
+			//we're on page 1 fresh from the open above - page down to the target page
+			for (Int32 i = 1; i < targetPage; i++)
 			{
-				MQ.Cmd($"/notify SpellBookWnd {pageButton} leftmouseup");
+				MQ.Cmd("/notify SpellBookWnd SBW_PageDown_Button leftmouseup");
 				MQ.Delay(250);
-			}
-
-			//dump the whole page vs what Me.Book expects at each raw slot, to see the real layout
-			for (Int32 i = 0; i < perPage; i++)
-			{
-				string displayedTxt = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{i}].Text}}");
-				Int32 rawSlotNum = (curPage - 1) * perPage + i + 1;
-				string expectedTxt = MQ.Query<string>($"${{Me.Book[{rawSlotNum}].Name}}");
-				MQ.Write($"\aw[MemDebug] idx={i} rawSlot={rawSlotNum} displayed='{displayedTxt}' Me.Book[{rawSlotNum}]='{expectedTxt}'");
 			}
 
 			//pick up the spell off the book page, then drop it onto the gem slot
 			Int32 slotOnPage = (bookSlot - 1) % perPage;
-			string spellOnSlot = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{slotOnPage}].Text}}");
-			MQ.Write($"\aw[MemDebug] slotOnPage={slotOnPage} spellCurrentlyShownThere='{spellOnSlot}' cursorBefore={MQ.Query<Int32>("${Cursor.ID}")}");
 			MQ.Cmd($"/notify SpellBookWnd SBW_Spell{slotOnPage} leftmouseup");
 			MQ.Delay(400);
-			MQ.Write($"\aw[MemDebug] cursorAfterPickup={MQ.Query<Int32>("${Cursor.ID}")}");
 			MQ.Cmd($"/notify CastSpellWnd CSPW_Spell{slot - 1} leftmouseup");
 
 			//wait for the memorize progress bar to appear, then finish
