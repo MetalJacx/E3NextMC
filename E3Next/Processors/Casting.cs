@@ -1685,6 +1685,15 @@ namespace E3Core.Processors
 				MQ.Delay(250);
 			}
 
+			//dump the whole page vs what Me.Book expects at each raw slot, to see the real layout
+			for (Int32 i = 0; i < perPage; i++)
+			{
+				string displayedTxt = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{i}].Text}}");
+				Int32 rawSlotNum = (curPage - 1) * perPage + i + 1;
+				string expectedTxt = MQ.Query<string>($"${{Me.Book[{rawSlotNum}].Name}}");
+				MQ.Write($"\aw[MemDebug] idx={i} rawSlot={rawSlotNum} displayed='{displayedTxt}' Me.Book[{rawSlotNum}]='{expectedTxt}'");
+			}
+
 			//pick up the spell off the book page, then drop it onto the gem slot
 			Int32 slotOnPage = (bookSlot - 1) % perPage;
 			string spellOnSlot = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{slotOnPage}].Text}}");
