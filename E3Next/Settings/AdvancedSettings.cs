@@ -41,12 +41,6 @@ namespace E3Core.Settings
         public static Dictionary<string, Action> MethodLookup = new Dictionary<string, Action>(StringComparer.OrdinalIgnoreCase);
         public static ConcurrentDictionary<string,Action> ClassMethodLookup = new ConcurrentDictionary<string, Action>(StringComparer.OrdinalIgnoreCase);
         public static Dictionary<string, List<string>> ClassMethodsAsStrings = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        /// <summary>
-        /// Key into ClassMethodsAsStrings for the "[Multiclass Functions]" section - used instead of the
-        /// character's (single) class section whenever Misc_ClassOverride is set, since on multiclass/custom
-        /// servers there's no single real class section that correctly describes the character anymore.
-        /// </summary>
-        public const string MulticlassFunctionsKey = "Multiclass";
         private string filename = string.Empty;
         public AdvancedSettings()
         {
@@ -90,9 +84,7 @@ namespace E3Core.Settings
                 ClassMethodsAsStrings.Add(shortname, new List<string>());
                 LoadKeyData($"{shortname} Functions", $"{shortname} Function", parsedData, ClassMethodsAsStrings[shortname]);
             }
-            ClassMethodsAsStrings.Add(MulticlassFunctionsKey, new List<string>());
-            LoadKeyData($"{MulticlassFunctionsKey} Functions", $"{MulticlassFunctionsKey} Function", parsedData, ClassMethodsAsStrings[MulticlassFunctionsKey]);
-
+         
         }
         public void InitMethods()
         {
@@ -125,15 +117,10 @@ namespace E3Core.Settings
 
             foreach (var foundMethod in methods) // iterate through all found methods
             {
-                //does the character have at least one of the classes this method is tagged for?
-                //(an overlap check rather than "is my whole class-set within configClass", so that a
-                //multiclass override - e.g. Class Override=Bard/Warrior - still picks up Bard-only
-                //tagged methods instead of requiring the character be ONLY Bard. For a single-class
-                //character this is equivalent to the old == check, since one bit is either fully in
-                //or fully out.)
+                //if the attribute class is the same as our current class.
                 Data.Class configClass = ((ClassInvokeAttribute)foundMethod.GetCustomAttribute(typeof(ClassInvokeAttribute), false)).CurrentClass;
-                if ((E3.CurrentClass & configClass) != 0)
-                {
+                if ((E3.CurrentClass &configClass) == E3.CurrentClass)
+                { 
                     //these are static don't need to create an instance
                     var func = (Action)foundMethod.CreateDelegate(typeof(Action));
                     ClassMethodLookup.TryAdd(foundMethod.Name, func);
@@ -306,22 +293,6 @@ WIZ Function=check_Nukes
 WIZ Function=check_Harvest
 WIZ Function=check_Food
 WIZ Function=check_Gimme
-;Only used when Misc_ClassOverride (Class Override) is set in the character ini - list every
-;check_ function you want run, from any class, since the override means we can't tell which
-;per-class sections actually apply to this character anymore. Defaults below are a broad
-;starting set covering every major role (buffs/debuffs/cures/nukes/dots/pets/charm) - trim
-;out whatever doesn't apply to your particular class combo.
-[Multiclass Functions]
-Multiclass Function=check_Buffs
-Multiclass Function=check_CombatBuffs
-Multiclass Function=check_Debuffs
-Multiclass Function=check_Cures
-Multiclass Function=check_Nukes
-Multiclass Function=check_AE
-Multiclass Function=check_DoTs
-Multiclass Function=check_OffAssistSpells
-Multiclass Function=check_Pets
-Multiclass Function=check_Charm
 ";
 
     }

@@ -242,7 +242,7 @@ namespace E3Core.Processors
 				}
 
 				//if this is a non bard, as we are not casting and its just an /alt activate, kick it off so it can queue up quickly. 
-				if (!E3.Is(Class.Bard) && spell.CastType == CastingType.AA && spell.MyCastTime <= 500 && !IsCasting())
+				if (E3.CurrentClass != Class.Bard && spell.CastType == CastingType.AA && spell.MyCastTime <= 500 && !IsCasting())
 				{
 					if (!(spell.TargetType == "Self" || (spell.TargetType == "Group v1" && spell.Category == "Heals")))
 					{
@@ -277,7 +277,7 @@ namespace E3Core.Processors
 					return CastReturn.CAST_SUCCESS;
 				}
 				//bard can cast insta cast items while singing, they be special.
-				else if (E3.Is(Class.Bard) && spell.NoMidSongCast == false && spell.MyCastTime <= 500 && (spell.CastType == CastingType.Item || spell.CastType == CastingType.AA || spell.CastType == Data.CastingType.Ability))
+				else if (E3.CurrentClass == Class.Bard && spell.NoMidSongCast == false && spell.MyCastTime <= 500 && (spell.CastType == CastingType.Item || spell.CastType == CastingType.AA || spell.CastType == Data.CastingType.Ability))
 				{
 					//instant cast item, can cast while singing
 					//note bards are special and cast do insta casts while doing normal singing. they have their own 
@@ -344,7 +344,7 @@ namespace E3Core.Processors
 						return CastReturn.CAST_NOTARGET;
 					}
 				}
-				else if (E3.Is(Class.Bard) && spell.CastType == CastingType.Spell)
+				else if (E3.CurrentClass == Class.Bard && spell.CastType == CastingType.Spell)
 				{
 					//wait for current song to finish
 					while (IsCasting())
@@ -797,7 +797,7 @@ namespace E3Core.Processors
 									return CastReturn.CAST_INTERRUPTED;
 								}
 								//check if we need to process any events,if healing tho, ignore. 
-								if ((spell.SpellType.Equals("Detrimental") || spell.Duration > 0) || E3.Is(Class.Bard))
+								if ((spell.SpellType.Equals("Detrimental") || spell.Duration > 0) || E3.CurrentClass == Class.Bard)
 								{
 									if (EventProcessor.CommandListQueueHasCommand("/backoff"))
 									{
@@ -830,7 +830,7 @@ namespace E3Core.Processors
 										EventProcessor.ProcessEventsInQueues("/followme");
 										if (!IsCasting()) return CastReturn.CAST_INTERRUPTED;
 									}
-									if (E3.Is(Class.Druid) || E3.Is(Class.Wizard))
+									if (E3.CurrentClass == Class.Druid || E3.CurrentClass == Class.Wizard)
 									{
 										if (EventProcessor.CommandListQueueHasCommand("/evac"))
 										{
@@ -1229,7 +1229,7 @@ namespace E3Core.Processors
 		public static void Sing(Int32 targetid, Data.Spell spell)
 		{
 
-			if (!E3.Is(Data.Class.Bard)) return;
+			if (E3.CurrentClass != Data.Class.Bard) return;
 			//Stop following for spell/item/aa with a cast time > 0 MyCastTime, unless im a bard
 			//anything under 300 is insta cast
 
@@ -1479,9 +1479,7 @@ namespace E3Core.Processors
 		{
 
 			//don't try and mem a spell if you are max aggro on anything as it will auto crit you.
-			//(overlap check, not subset - a Tank/Priest multiclass hybrid tanking in combat is just as
-			//at-risk as a pure tank, so any tank class in the mix should still skip memorizing here)
-			if (Basics.InCombat() && E3.Is(Data.Class.Tank)) return false;
+			if (Basics.InCombat() && (E3.CurrentClass & Data.Class.Tank) == E3.CurrentClass) return false;
 			if (e3util.GetXtargetMaxAggro() == 100) return false;
 
 
@@ -1757,10 +1755,9 @@ namespace E3Core.Processors
 		}
 		public static Boolean InGlobalCooldown()
 		{
-			//pure melee don't have a GCD at all (subset check intentional: a hybrid that also has a
-			//casting class still needs real GCD tracking, so only skip when every class is pure melee)
+			//pure melee don't have 
 			if ((E3.CurrentClass & Class.PureMelee) == E3.CurrentClass) return false;
-			if (E3.Is(Class.Bard))
+			if (E3.CurrentClass == Class.Bard)
 			{
 				return false;
 			}
@@ -2072,7 +2069,7 @@ namespace E3Core.Processors
 			//_log.Write($"CheckReady on {spell.CastName}");
 			if (!skipCastCheck)
 			{
-				if (!E3.Is(Data.Class.Bard))
+				if (E3.CurrentClass != Data.Class.Bard)
 				{
 					while (IsCasting())
 					{
@@ -3067,8 +3064,6 @@ namespace E3Core.Processors
 
 		public static void RefreshGemCache()
 		{
-			//subset check intentional (see InGlobalCooldown) - pure melee classes have no spell gems
-			//at all, but a hybrid with any casting class still has gems that need tracking.
 			if ((E3.CurrentClass & Class.PureMelee) == E3.CurrentClass)
 			{
 				//class doesn't have spells

@@ -119,7 +119,7 @@ namespace E3Core.Settings
 		public bool Misc_RemoveTorporAfterCombat = true;
 		[INI_Section("Misc", "Delay in MS After CastWindow Drops For Spell Completion")]
 		public Int32 Misc_DelayAfterCastWindowDropsForSpellCompletion = 0;
-		[INI_Section("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. SHD/CLR, SHD/CLR/NEC for multiclass/custom servers)")]
+		[INI_Section("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. BRD/PAL/etc for custom servers where Me.Class is wrong)")]
 		public string Misc_ClassOverride = String.Empty;
 
 
@@ -941,9 +941,9 @@ namespace E3Core.Settings
 			LoadKeyData("CPU", "Camp Shutdown at 5 seconds", ParsedData, ref CPU_Camping_ShutdownAt5Seconds);
 
 			LoadKeyData("Misc", "AutoFood", ParsedData, ref Misc_AutoFoodEnabled);
+			LoadKeyData("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. BRD/PAL/etc for custom servers where Me.Class is wrong)", ParsedData, ref Misc_ClassOverride);
 			LoadKeyData("Misc", "Food", ParsedData, ref Misc_AutoFood);
 			LoadKeyData("Misc", "Drink", ParsedData, ref Misc_AutoDrink);
-			LoadKeyData("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. SHD/CLR, SHD/CLR/NEC for multiclass/custom servers)", ParsedData, ref Misc_ClassOverride);
 			LoadKeyData("Misc", "End MedBreak in Combat(On/Off)", ParsedData, ref Misc_EndMedBreakInCombat);
 			LoadKeyData("Misc", "AutoMedBreak (On/Off)", ParsedData, ref Misc_AutoMedBreak);
 			LoadKeyData("Misc", "Auto-Loot (On/Off)", ParsedData, ref Misc_AutoLootEnabled);
@@ -2456,7 +2456,7 @@ namespace E3Core.Settings
 				}
 			}
 			//now for the snowflake bards :)
-			if (E3.Is(Class.Bard))
+			if (E3.CurrentClass == Class.Bard)
 			{
 
 				//dict of List<spell>

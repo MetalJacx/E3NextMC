@@ -43,7 +43,7 @@ namespace E3Core.Processors
             _petMaxShrinkID = 0;
 
             //try out hold if on enc, then after 3 sec try ghold
-			if (E3.Is(Class.Enchanter))
+			if (E3.CurrentClass == Class.Enchanter)
             {
 				MQ.Cmd("/squelch /pet hold on");
 				MQ.Cmd("/timed 30 /squelch /pet ghold on");

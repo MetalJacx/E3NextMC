@@ -156,7 +156,6 @@ namespace E3NextConfigEditor
 			E3.ServerName = e3util.FormatServerName(_mqClient.Query<string>("${MacroQuest.Server}"));
 
 
-
 			_splashScreen.Invoke(new Action(() =>_splashScreen.splashLabel.Text="Requesting AA list..."));
 			byte[] result = _tloClient.RequestRawData("${E3.AA.ListAll}");
 			SpellDataList aas = SpellDataList.Parser.ParseFrom(result);
@@ -252,8 +251,8 @@ namespace E3NextConfigEditor
 			//this will auto end after 1 second, but its good to end it properly.
 			_tloClient.RequestData("${E3.TLO.BulkEnd}");
 
-			//needs CharacterSettings loaded first so a Class Override (multiclass/custom servers) wins
-			//over ${Me.Class}, same as the main bot does in E3.Init().
+			//needs CharacterSettings loaded first so a Class Override (custom servers where ${Me.Class}
+			//is wrong) wins over ${Me.Class}, same as the main bot does in E3.Init().
 			E3.DetermineCurrentClass();
 			_currentClass = E3.CurrentClass;
 			labelClass.Text = E3.CurrentLongClassString;
@@ -296,7 +295,7 @@ namespace E3NextConfigEditor
 			List<string> sectionNames = new List<string>();
 
 			//bards, the snowflakes can make dynamic sections
-			if (E3.Is(Class.Bard))
+			if (E3.CurrentClass == Class.Bard)
 			{
 				sectionNames.Add(_bardDynamicMelodyName);
 			}
@@ -346,7 +345,7 @@ namespace E3NextConfigEditor
             _sectionRootNodes.Text = "Sections";
 
 			
-            if (E3.Is(Class.Bard))
+            if (E3.CurrentClass == Class.Bard)
             {
                 TreeNode node = new TreeNode();
                 node.Text = _bardDynamicMelodyName;

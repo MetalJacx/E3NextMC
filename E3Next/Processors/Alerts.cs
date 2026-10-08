@@ -232,9 +232,8 @@ namespace E3Core.Processors
 				
             });
 
-			//if not a tank (overlap check: a multiclass hybrid with any tank class is still "a tank"
-			//for the purpose of this alert), lets broadcast out that we are taking damage
-			if (!E3.Is(Class.Tank))
+			//if not a tank, lets broadcast out that we are taking damage
+			if ((E3.CurrentClass & Class.Tank) != E3.CurrentClass)
 			{
 				//You have taken 7840 points of damage.
 				pattern = $@"\.  You have taken ([0-9]+) points of damage.";

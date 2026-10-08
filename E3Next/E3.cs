@@ -106,7 +106,7 @@ namespace E3Core.Processors
 				Burns.UseBurns();
 				//do the basics first
 				//first and formost, do healing checks
-				if (Is(Data.Class.Priest))
+				if ((CurrentClass & Data.Class.Priest) == CurrentClass)
 				{
 					ActionTaken = false;
 					Heals.Check_Heals();
@@ -128,8 +128,7 @@ namespace E3Core.Processors
 			{
 				//rembmer check_heals is auto inserted, should probably just pull out here
 				List<string> _methodsToInvokeAsStrings;
-				string functionsKey = IsMulticlassOverrideActive ? Settings.AdvancedSettings.MulticlassFunctionsKey : CurrentShortClassString;
-				if (AdvancedSettings.ClassMethodsAsStrings.TryGetValue(functionsKey, out _methodsToInvokeAsStrings))
+				if (AdvancedSettings.ClassMethodsAsStrings.TryGetValue(CurrentShortClassString, out _methodsToInvokeAsStrings))
 				{
 					foreach (var methodName in _methodsToInvokeAsStrings)
 					{
@@ -167,7 +166,7 @@ namespace E3Core.Processors
 			
 			
 			//bard song player
-			if (E3.Is(Data.Class.Bard))
+			if (E3.CurrentClass == Data.Class.Bard)
 			{
 				Bard.Check_AutoMez();
 				Bard.check_BardSongs();
@@ -956,27 +955,25 @@ namespace E3Core.Processors
 		/// <summary>
 		/// Figures out CurrentClass. Defaults to auto-detecting from ${Me.Class} (fixed up per-server
 		/// via e3util.ClassNameFix), but a non-blank CharacterSettings.Misc_ClassOverride always wins -
-		/// needed on multiclass/custom servers where ${Me.Class} reports only one class, and sometimes
-		/// not even one the character is actually playing. Public so the Config Editor (a separate
-		/// assembly) can re-derive the class the same way after it loads CharacterSettings, instead of
-		/// trusting ${Me.Class} directly.
+		/// needed on custom servers where ${Me.Class} reports the wrong class, or sometimes not even one
+		/// the character is actually playing. Public so the Config Editor (a separate assembly) can
+		/// re-derive the class the same way after it loads CharacterSettings, instead of trusting
+		/// ${Me.Class} directly.
 		/// </summary>
 		public static void DetermineCurrentClass()
 		{
 			Data.Class overrideClass;
-			string overridePrimaryLongName;
-			if (CharacterSettings != null && e3util.TryParseClassOverride(CharacterSettings.Misc_ClassOverride, out overrideClass, out overridePrimaryLongName))
+			string overrideLongName;
+			if (CharacterSettings != null && e3util.TryParseClassOverride(CharacterSettings.Misc_ClassOverride, out overrideClass, out overrideLongName))
 			{
 				CurrentClass = overrideClass;
-				CurrentLongClassString = overridePrimaryLongName;
-				IsMulticlassOverrideActive = true;
+				CurrentLongClassString = overrideLongName;
 			}
 			else
 			{
 				string classValue = e3util.ClassNameFix(MQ.Query<string>("${Me.Class}"));
 				Enum.TryParse(classValue, out CurrentClass);
 				CurrentLongClassString = CurrentClass.ToString();
-				IsMulticlassOverrideActive = false;
 			}
 			CurrentShortClassString = Data.EQClasses.ClassLongToShort[CurrentLongClassString];
 		}
@@ -1112,22 +1109,6 @@ namespace E3Core.Processors
 		public static IBots Bots = null;
         public static string CurrentName;
         public static Data.Class CurrentClass;
-        /// <summary>
-        /// True if the character currently has the given class (handles multiclass characters
-        /// where CurrentClass may hold more than one flag). Prefer this over == / != comparisons
-        /// against CurrentClass.
-        /// </summary>
-        public static bool Is(Data.Class c)
-        {
-            return (CurrentClass & c) != 0;
-        }
-        /// <summary>
-        /// True when CharacterSettings.Misc_ClassOverride is set (multiclass/custom server mode).
-        /// When true, per-class lookups that can only key off one class (e.g. AdvancedSettings'
-        /// "[XYZ Functions]" sections) should use AdvancedSettings.MulticlassFunctionsKey instead
-        /// of CurrentShortClassString.
-        /// </summary>
-        public static bool IsMulticlassOverrideActive = false;
         public static string ServerName;
         public static string CurrentPetName = String.Empty;
 		public static string CurrentMercName = String.Empty;

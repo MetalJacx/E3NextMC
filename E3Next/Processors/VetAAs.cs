@@ -79,7 +79,7 @@ namespace E3Core.Processors
                 MQ.Cmd("/alt act 511");
 				PubServer.AddTopicMessage("${Me.Casting}", "Marr's Calling");
 				MQ.Delay(500);
-                if (E3.Is(Class.Bard))
+                if (E3.CurrentClass == Class.Bard)
                 {
                     MQ.Delay(17000);
 					PubServer.AddTopicMessage("${Me.Casting}", String.Empty);
@@ -101,7 +101,7 @@ namespace E3Core.Processors
 				MQ.Cmd("/alt act 331");
 				PubServer.AddTopicMessage("${Me.Casting}", "Origin");
 				MQ.Delay(500);
-				if (E3.Is(Class.Bard))
+				if (E3.CurrentClass == Class.Bard)
 				{
 					MQ.Delay(17000);
 					PubServer.AddTopicMessage("${Me.Casting}", String.Empty);
@@ -140,7 +140,7 @@ namespace E3Core.Processors
                 {
                     //this is to deal with vet aa with bards not showing a cast window.
                     //force a stop of any song, do the cast, wait for it to end, then continue back on your way.
-                    if (E3.Is(Class.Bard))
+                    if (E3.CurrentClass == Class.Bard)
                     {
                         MQ.Cmd("/stopsong");
                        
