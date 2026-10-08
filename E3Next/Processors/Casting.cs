@@ -1640,18 +1640,49 @@ namespace E3Core.Processors
 			if (perPage == 0) perPage = 8;
 			MQ.Write($"\aw[MemDebug] perPage={perPage}");
 
-			//reset to page 1, then page down to the page our spell is on
-			for (Int32 i = 0; i < 40; i++)
+			//let the page actually render before reading it
+			MQ.Delay(300);
+
+			//figure out what page we're actually on by reading what's displayed and
+			//looking it up against the book - don't just blindly click and hope.
+			Func<Int32> inferCurrentPage = () =>
 			{
-				MQ.Cmd("/notify SpellBookWnd SBW_PageUp_Button leftmouseup");
-				MQ.Delay(50);
+				for (Int32 i = 0; i < perPage; i++)
+				{
+					string txt = MQ.Query<string>($"${{Window[SpellBookWnd].Child[SBW_Spell{i}].Text}}");
+					if (!String.IsNullOrEmpty(txt))
+					{
+						Int32 bs = MQ.Query<Int32>($"${{Me.Book[{txt}]}}");
+						if (bs > 0) return (Int32)Math.Ceiling((double)bs / perPage);
+					}
+				}
+				return 0;
+			};
+
+			Int32 curPage = inferCurrentPage();
+			if (curPage <= 0)
+			{
+				//nothing displayed to infer from (empty page, or UI hasn't caught up) -
+				//nudge toward page 1 a few clicks at a time, re-checking after each one.
+				for (Int32 i = 0; i < 25 && curPage <= 0; i++)
+				{
+					MQ.Cmd("/notify SpellBookWnd SBW_PageUp_Button leftmouseup");
+					MQ.Delay(250);
+					curPage = inferCurrentPage();
+				}
+				if (curPage <= 0) curPage = 1;
 			}
+			MQ.Write($"\aw[MemDebug] curPage={curPage}");
+
 			Int32 targetPage = (Int32)Math.Ceiling((double)bookSlot / perPage);
 			MQ.Write($"\aw[MemDebug] targetPage={targetPage}");
-			for (Int32 i = 1; i < targetPage; i++)
+
+			Int32 pageDiff = targetPage - curPage;
+			string pageButton = pageDiff > 0 ? "SBW_PageDown_Button" : "SBW_PageUp_Button";
+			for (Int32 i = 0; i < Math.Abs(pageDiff); i++)
 			{
-				MQ.Cmd("/notify SpellBookWnd SBW_PageDown_Button leftmouseup");
-				MQ.Delay(200);
+				MQ.Cmd($"/notify SpellBookWnd {pageButton} leftmouseup");
+				MQ.Delay(250);
 			}
 
 			//pick up the spell off the book page, then drop it onto the gem slot
