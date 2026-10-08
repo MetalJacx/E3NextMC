@@ -81,7 +81,8 @@ namespace E3Core.Processors
 		private static bool IsCheckCharmConfigured()
 		{
 			List<string> _methodsToInvokeAsStrings;
-			if (AdvancedSettings.ClassMethodsAsStrings.TryGetValue(E3.CurrentShortClassString, out _methodsToInvokeAsStrings))
+			string functionsKey = E3.IsMulticlassOverrideActive ? AdvancedSettings.MulticlassFunctionsKey : E3.CurrentShortClassString;
+			if (AdvancedSettings.ClassMethodsAsStrings.TryGetValue(functionsKey, out _methodsToInvokeAsStrings))
 			{
 				foreach (var methodName in _methodsToInvokeAsStrings)
 				{

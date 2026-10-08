@@ -997,7 +997,7 @@ namespace E3Core.Processors
 						{
 
 							E3FollowTargetName = user;
-							if (E3.CurrentClass != Class.Bard)
+							if (!E3.Is(Class.Bard))
 							{
 								Casting.Interrupt();
 							}
@@ -1120,7 +1120,7 @@ namespace E3Core.Processors
 
                             FollowTargetName = user;
                             Following = false;
-                            if (E3.CurrentClass != Class.Bard)
+                            if (!E3.Is(Class.Bard))
                             {
                                 Casting.Interrupt();
                             }
@@ -1371,7 +1371,7 @@ namespace E3Core.Processors
                     if (MQ.Query<bool>("${Me.Invis}")) MQ.Cmd("/makemevisible");
                     Casting.Cast(s.ID, summonSpell);
 
-                    if (E3.CurrentClass == Class.Bard)
+                    if (E3.Is(Class.Bard))
                     {
                         MQ.Write("Delaying for 12 sec for coth to complete");
                         MQ.Delay(12000);
@@ -1405,7 +1405,7 @@ namespace E3Core.Processors
                         MQ.Cmd($"/g E3 Group Coth: Casting \"Call of the Hero\" on: {s.CleanName}");
                         if (MQ.Query<bool>("${Me.Invis}")) MQ.Cmd("/makemevisible");
                         Casting.Cast(memberid, summonSpell);
-						if (E3.CurrentClass == Class.Bard)
+						if (E3.Is(Class.Bard))
 						{
 							MQ.Write("Delaying for 12 sec for coth to complete");
 							MQ.Delay(12000);

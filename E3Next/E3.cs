@@ -106,7 +106,7 @@ namespace E3Core.Processors
 				Burns.UseBurns();
 				//do the basics first
 				//first and formost, do healing checks
-				if ((CurrentClass & Data.Class.Priest) == CurrentClass)
+				if (Is(Data.Class.Priest))
 				{
 					ActionTaken = false;
 					Heals.Check_Heals();
@@ -128,7 +128,8 @@ namespace E3Core.Processors
 			{
 				//rembmer check_heals is auto inserted, should probably just pull out here
 				List<string> _methodsToInvokeAsStrings;
-				if (AdvancedSettings.ClassMethodsAsStrings.TryGetValue(CurrentShortClassString, out _methodsToInvokeAsStrings))
+				string functionsKey = IsMulticlassOverrideActive ? Settings.AdvancedSettings.MulticlassFunctionsKey : CurrentShortClassString;
+				if (AdvancedSettings.ClassMethodsAsStrings.TryGetValue(functionsKey, out _methodsToInvokeAsStrings))
 				{
 					foreach (var methodName in _methodsToInvokeAsStrings)
 					{
@@ -166,7 +167,7 @@ namespace E3Core.Processors
 			
 			
 			//bard song player
-			if (E3.CurrentClass == Data.Class.Bard)
+			if (E3.Is(Data.Class.Bard))
 			{
 				Bard.Check_AutoMez();
 				Bard.check_BardSongs();
@@ -945,16 +946,41 @@ namespace E3Core.Processors
         }
 		public static void ReInit()
 		{
-			string classValue = e3util.ClassNameFix(MQ.Query<string>("${Me.Class}"));
-			Enum.TryParse(classValue, out CurrentClass);
-			CurrentLongClassString = CurrentClass.ToString();
-			CurrentShortClassString = Data.EQClasses.ClassLongToShort[CurrentLongClassString];
+			DetermineCurrentClass();
 			if(e3util.IsEQLive())
 			{
 				e3util.MobMaxDebuffSlots = 200;
 			}
 		}
-		
+
+		/// <summary>
+		/// Figures out CurrentClass. Defaults to auto-detecting from ${Me.Class} (fixed up per-server
+		/// via e3util.ClassNameFix), but a non-blank CharacterSettings.Misc_ClassOverride always wins -
+		/// needed on multiclass/custom servers where ${Me.Class} reports only one class, and sometimes
+		/// not even one the character is actually playing. Public so the Config Editor (a separate
+		/// assembly) can re-derive the class the same way after it loads CharacterSettings, instead of
+		/// trusting ${Me.Class} directly.
+		/// </summary>
+		public static void DetermineCurrentClass()
+		{
+			Data.Class overrideClass;
+			string overridePrimaryLongName;
+			if (CharacterSettings != null && e3util.TryParseClassOverride(CharacterSettings.Misc_ClassOverride, out overrideClass, out overridePrimaryLongName))
+			{
+				CurrentClass = overrideClass;
+				CurrentLongClassString = overridePrimaryLongName;
+				IsMulticlassOverrideActive = true;
+			}
+			else
+			{
+				string classValue = e3util.ClassNameFix(MQ.Query<string>("${Me.Class}"));
+				Enum.TryParse(classValue, out CurrentClass);
+				CurrentLongClassString = CurrentClass.ToString();
+				IsMulticlassOverrideActive = false;
+			}
+			CurrentShortClassString = Data.EQClasses.ClassLongToShort[CurrentLongClassString];
+		}
+
 		private static void Init()
         {
 
@@ -984,11 +1010,6 @@ namespace E3Core.Processors
 
                 CurrentName = MQ.Query<string>("${Me.CleanName}");
                 ServerName = e3util.FormatServerName(MQ.Query<string>("${MacroQuest.Server}"));
-                //deal with the Shadow Knight class issue.
-                string classValue =e3util.ClassNameFix(MQ.Query<string>("${Me.Class}"));
-                Enum.TryParse(classValue, out CurrentClass);
-                CurrentLongClassString = CurrentClass.ToString();
-                CurrentShortClassString = Data.EQClasses.ClassLongToShort[CurrentLongClassString];
 
                 //Init the settings
                 GeneralSettings = new Settings.GeneralSettings();
@@ -1002,7 +1023,8 @@ namespace E3Core.Processors
 				GlobalCursorDelete = new GlobalCursorDelete();
 				CharacterSettings = new Settings.CharacterSettings();
                 AdvancedSettings = new Settings.AdvancedSettings();
-			
+				DetermineCurrentClass();
+
 				SetupLibPaths();
 				string driverPathName =_libPath + "SQLite.Interop.dll";
 				if (File.Exists(driverPathName))
@@ -1090,6 +1112,22 @@ namespace E3Core.Processors
 		public static IBots Bots = null;
         public static string CurrentName;
         public static Data.Class CurrentClass;
+        /// <summary>
+        /// True if the character currently has the given class (handles multiclass characters
+        /// where CurrentClass may hold more than one flag). Prefer this over == / != comparisons
+        /// against CurrentClass.
+        /// </summary>
+        public static bool Is(Data.Class c)
+        {
+            return (CurrentClass & c) != 0;
+        }
+        /// <summary>
+        /// True when CharacterSettings.Misc_ClassOverride is set (multiclass/custom server mode).
+        /// When true, per-class lookups that can only key off one class (e.g. AdvancedSettings'
+        /// "[XYZ Functions]" sections) should use AdvancedSettings.MulticlassFunctionsKey instead
+        /// of CurrentShortClassString.
+        /// </summary>
+        public static bool IsMulticlassOverrideActive = false;
         public static string ServerName;
         public static string CurrentPetName = String.Empty;
 		public static string CurrentMercName = String.Empty;

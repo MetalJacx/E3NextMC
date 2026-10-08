@@ -160,7 +160,7 @@ namespace E3Core.Processors
                         }
                     }
                     //interrupt any spell that is currently casting.
-                    if (E3.CurrentClass != Class.Bard)
+                    if (!E3.Is(Class.Bard))
                     {
                         if (Casting.IsCasting())
                         {
@@ -246,7 +246,7 @@ namespace E3Core.Processors
                     {
                         goto recast;
                     }
-                    if(returnValue == CastReturn.CAST_SUCCESS && E3.CurrentClass== Class.Bard)
+                    if(returnValue == CastReturn.CAST_SUCCESS && E3.Is(Class.Bard))
                     {
                         //bards need a moment before they start back up their twist on a nowcast
                         Bard.SetNextBardCast();

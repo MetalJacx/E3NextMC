@@ -195,7 +195,7 @@ namespace E3Core.Processors
 
 					//however if we have nothing setup to actually force a target, and a priest class
 					bool should_be_targeting_mob = true;
-					if ((E3.CurrentClass & Class.Priest) == E3.CurrentClass)
+					if (E3.Is(Class.Priest))
 					{
 						should_be_targeting_mob = false;
 						should_be_targeting_mob = E3.CharacterSettings.Nukes.Count > 0;
@@ -382,7 +382,7 @@ namespace E3Core.Processors
 				//end smart taunt
 
 				//rogue/bards are special
-				if (E3.CurrentClass == Data.Class.Rogue && E3.CharacterSettings.Rogue_AutoEvade)
+				if (E3.Is(Data.Class.Rogue) && E3.CharacterSettings.Rogue_AutoEvade)
 				{
 					Rogue.AutoEvade();
 				}
@@ -733,6 +733,8 @@ namespace E3Core.Processors
 						//don't want to appear 'bot' like by always facing the mob
 						//stick for melee should keep them facing th emob
 						//as well as ranged has face commands but casters shouldn't care
+						//(subset checks intentional - a hybrid with any melee/physical class still needs
+						//to face, so only skip facing when every class is pure caster/priest)
 						if (!((E3.CurrentClass & Class.Caster) == E3.CurrentClass || (E3.CurrentClass & Class.Priest) == E3.CurrentClass) || (E3.CharacterSettings.Assist_Type.Equals("AutoAttack", StringComparison.OrdinalIgnoreCase)))
 						{
 							MQ.Cmd($"/face id {AssistTargetID}", 500);
@@ -793,7 +795,7 @@ namespace E3Core.Processors
 
 						}
 					}
-					if (E3.CurrentClass == Data.Class.Rogue && !String.IsNullOrWhiteSpace(E3.CharacterSettings.Rogue_SneakAttack))
+					if (E3.Is(Data.Class.Rogue) && !String.IsNullOrWhiteSpace(E3.CharacterSettings.Rogue_SneakAttack))
 					{
 						Rogue.RogueStrike();
 
@@ -817,6 +819,9 @@ namespace E3Core.Processors
 				}
 				else if (_rangeTypes.Contains(E3.CharacterSettings.Assist_Type, StringComparer.OrdinalIgnoreCase))
 				{
+					//subset checks intentional - this is the physical ranged weapon (bow/throwing) windup,
+					//which only matters for a character that still has an actual ranged weapon slot role;
+					//a hybrid with a caster/priest class alongside a physical one still needs it.
 					if ((E3.CurrentClass & Class.Caster) != E3.CurrentClass && (E3.CurrentClass & Class.Priest) != E3.CurrentClass)
 					{
 						if (!MQ.Query<bool>("${Me.AutoFire}"))
@@ -1108,7 +1113,7 @@ namespace E3Core.Processors
 			{
 				if (!e3util.FilterMe(x))
 				{
-					if (E3.CurrentClass != Class.Bard)
+					if (!E3.Is(Class.Bard))
 					{
 						Casting.Interrupt();
 					}
@@ -1129,7 +1134,7 @@ namespace E3Core.Processors
 			});
 			EventProcessor.RegisterCommand("/backoffme", (x) =>
 			{
-				if (E3.CurrentClass != Class.Bard)
+				if (!E3.Is(Class.Bard))
 				{
 					Casting.Interrupt();
 				}

@@ -156,13 +156,6 @@ namespace E3NextConfigEditor
 			E3.ServerName = e3util.FormatServerName(_mqClient.Query<string>("${MacroQuest.Server}"));
 
 
-			//need the proper class so that the settings can load correctly
-			string classValue = e3util.ClassNameFix(_tloClient.RequestData("${Me.Class}"));
-			System.Enum.TryParse(classValue, out _currentClass);
-			labelClass.Text = classValue;
-
-			E3.CurrentClass = _currentClass;
-	
 
 			_splashScreen.Invoke(new Action(() =>_splashScreen.splashLabel.Text="Requesting AA list..."));
 			byte[] result = _tloClient.RequestRawData("${E3.AA.ListAll}");
@@ -259,6 +252,12 @@ namespace E3NextConfigEditor
 			//this will auto end after 1 second, but its good to end it properly.
 			_tloClient.RequestData("${E3.TLO.BulkEnd}");
 
+			//needs CharacterSettings loaded first so a Class Override (multiclass/custom servers) wins
+			//over ${Me.Class}, same as the main bot does in E3.Init().
+			E3.DetermineCurrentClass();
+			_currentClass = E3.CurrentClass;
+			labelClass.Text = E3.CurrentLongClassString;
+
             //set window title
             this.Text = $"INI Editor ({E3.CurrentName})"; // $"({E3.CurrentName})({E3.ServerName})";
 			
@@ -297,7 +296,7 @@ namespace E3NextConfigEditor
 			List<string> sectionNames = new List<string>();
 
 			//bards, the snowflakes can make dynamic sections
-			if (E3.CurrentClass == Class.Bard)
+			if (E3.Is(Class.Bard))
 			{
 				sectionNames.Add(_bardDynamicMelodyName);
 			}
@@ -347,7 +346,7 @@ namespace E3NextConfigEditor
             _sectionRootNodes.Text = "Sections";
 
 			
-            if (E3.CurrentClass == Class.Bard)
+            if (E3.Is(Class.Bard))
             {
                 TreeNode node = new TreeNode();
                 node.Text = _bardDynamicMelodyName;

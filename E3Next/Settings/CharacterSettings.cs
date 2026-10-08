@@ -119,6 +119,8 @@ namespace E3Core.Settings
 		public bool Misc_RemoveTorporAfterCombat = true;
 		[INI_Section("Misc", "Delay in MS After CastWindow Drops For Spell Completion")]
 		public Int32 Misc_DelayAfterCastWindowDropsForSpellCompletion = 0;
+		[INI_Section("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. SHD/CLR, SHD/CLR/NEC for multiclass/custom servers)")]
+		public string Misc_ClassOverride = String.Empty;
 
 
 		[INI_Section("Misc", "Auto-Forage (On/Off)")]
@@ -941,6 +943,7 @@ namespace E3Core.Settings
 			LoadKeyData("Misc", "AutoFood", ParsedData, ref Misc_AutoFoodEnabled);
 			LoadKeyData("Misc", "Food", ParsedData, ref Misc_AutoFood);
 			LoadKeyData("Misc", "Drink", ParsedData, ref Misc_AutoDrink);
+			LoadKeyData("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. SHD/CLR, SHD/CLR/NEC for multiclass/custom servers)", ParsedData, ref Misc_ClassOverride);
 			LoadKeyData("Misc", "End MedBreak in Combat(On/Off)", ParsedData, ref Misc_EndMedBreakInCombat);
 			LoadKeyData("Misc", "AutoMedBreak (On/Off)", ParsedData, ref Misc_AutoMedBreak);
 			LoadKeyData("Misc", "Auto-Loot (On/Off)", ParsedData, ref Misc_AutoLootEnabled);
@@ -2453,7 +2456,7 @@ namespace E3Core.Settings
 				}
 			}
 			//now for the snowflake bards :)
-			if (E3.CurrentClass == Class.Bard)
+			if (E3.Is(Class.Bard))
 			{
 
 				//dict of List<spell>

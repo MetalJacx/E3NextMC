@@ -87,7 +87,7 @@ namespace E3Core.Classes
         [SubSystemInit]
         public static void Magician_PetEquipmentRequest()
         {
-            if (E3.CurrentClass != Class.Magician || e3util.IsEQLive())
+            if (!E3.Is(Class.Magician) || e3util.IsEQLive())
             {
                 return;
             }
@@ -120,7 +120,7 @@ namespace E3Core.Classes
                     return;
                 }
 
-                if (E3.CurrentClass != Class.Magician)
+                if (!E3.Is(Class.Magician))
                 {
                     MQ.Cmd($"/t {_requester} Only magicians can give out pet weapons!");
                     return;

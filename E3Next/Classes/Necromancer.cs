@@ -27,7 +27,7 @@ namespace E3Core.Classes
         [SubSystemInit]
         public static void Necromancer_Init()
         {
-            if(E3.CurrentClass!=Class.Necromancer) return;
+            if(!E3.Is(Class.Necromancer)) return;
 
             EventProcessor.RegisterEvent("NecroFDBreak", "You are no longer feigning death, because a spell hit you.", (x) =>
             {

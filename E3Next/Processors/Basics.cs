@@ -1160,7 +1160,7 @@ namespace E3Core.Processors
 			});
 			EventProcessor.RegisterCommand("/evac", (x) =>
 			{
-				if (E3.CurrentClass == Class.Druid || E3.CurrentClass == Class.Wizard)
+				if (E3.Is(Class.Druid) || E3.Is(Class.Wizard))
 				{
 					//someone told us to gate
 
@@ -1194,11 +1194,11 @@ namespace E3Core.Processors
 					{
 						//lets try and do evac spell?
 						string spellToCheck = string.Empty;
-						if (E3.CurrentClass == Class.Wizard)
+						if (E3.Is(Class.Wizard))
 						{
 							spellToCheck = "Evacuate";
 						}
-						else if (E3.CurrentClass == Class.Druid)
+						else if (E3.Is(Class.Druid))
 						{
 							spellToCheck = "Succor";
 						}
@@ -1726,7 +1726,7 @@ namespace E3Core.Processors
 			if (E3.IsInvis) return false;
 			if (Basics.AmIDead()) return false;
 			if (e3util.IsEQLive()) return false;
-			if (E3.CurrentClass == Class.Bard) return false;
+			if (E3.Is(Class.Bard)) return false;
 
 			if (_largeModRodHPTaken == 0)
 			{   //mod rod is 
@@ -1741,7 +1741,7 @@ namespace E3Core.Processors
 			var pctHps = MQ.Query<int>("${Me.PctHPs}");
 			int currentHps = MQ.Query<int>("${Me.CurrentHPs}");
 
-			if (E3.CurrentClass == Data.Class.Enchanter)
+			if (E3.Is(Data.Class.Enchanter))
 			{
 				bool manaDrawBuff = MQ.Query<bool>("${Bool[${Me.Buff[Mana Draw]}]}") || MQ.Query<bool>("${Bool[${Me.Song[Mana Draw]}]}");
 				if (manaDrawBuff)
@@ -1848,7 +1848,7 @@ namespace E3Core.Processors
 			//		}
 			//	}
 			//}
-			if (E3.CurrentClass == Data.Class.Enchanter && pctMana < 50 && E3.CurrentInCombat)
+			if (E3.Is(Data.Class.Enchanter) && pctMana < 50 && E3.CurrentInCombat)
 			{
 				bool manaDrawReady = MQ.Query<bool>("${Me.AltAbilityReady[Mana Draw]}");
 				if (manaDrawReady)
@@ -2048,7 +2048,7 @@ namespace E3Core.Processors
 								return;
 							}
 							if (MQ.Query<bool>("${Me.Invis}")) return;
-							if ((E3.CurrentClass & Class.Priest) == E3.CurrentClass && Basics.InCombat())
+							if (E3.Is(Class.Priest) && Basics.InCombat())
 							{
 								if (Heals.SomeoneNeedsHealing(null, currentMana, pctMana))
 								{
@@ -2113,9 +2113,11 @@ namespace E3Core.Processors
 
 			if (Casting.SpellBookWndOpen()) return;
 			if (e3util.IsManualControl()) return;
-			if (Casting.IsCasting() && E3.CurrentClass != Class.Bard) return;
+			if (Casting.IsCasting() && !E3.Is(Class.Bard)) return;
 			if (MQ.Query<bool>("${Me.Feigning}")) return; //don't stand up /sit if we are feign
 
+			//subset check intentional - a hybrid that also has a melee class still needs to stand up
+			//and fight while assisting, so only skip that if every class is pure caster/priest.
 			bool isCasterOrPriest = (E3.CurrentClass & Class.Caster) == E3.CurrentClass || (E3.CurrentClass & Class.Priest) == E3.CurrentClass;
 			//check to see if enabled, and if override ws enabled
 			if (E3.CharacterSettings.AutoMed_OverrideOldSettings)
@@ -2174,14 +2176,14 @@ namespace E3Core.Processors
 				Misc_LastTimeAutoMedHappened = Core.StopWatch.ElapsedMilliseconds;
 			}
 
-			if (E3.ActionTaken && E3.CurrentClass != Class.Bard)
+			if (E3.ActionTaken && !E3.Is(Class.Bard))
 			{ //we just did something, lets wait for at least one loop of nothing before we sit
 			  //this should prevent cast/sit/cast/cast in rapid fire situations
 				Misc_LastTimeAutoMedHappened = Core.StopWatch.ElapsedMilliseconds;
 				return;
 
 			}
-			else if (E3.CurrentClass == Class.Bard && Basics.InCombat())
+			else if (E3.Is(Class.Bard) && Basics.InCombat())
 			{
 				//well they won't really sit in combat\
 				Misc_LastTimeAutoMedHappened = Core.StopWatch.ElapsedMilliseconds;
@@ -2199,7 +2201,7 @@ namespace E3Core.Processors
 
 
 			//no sense in recovering endurance if not in resting state
-			if (!MQ.Query<bool>("${Me.CombatState.Equal[ACTIVE]}") && E3.CurrentClass == Class.Bard) return;
+			if (!MQ.Query<bool>("${Me.CombatState.Equal[ACTIVE]}") && E3.Is(Class.Bard)) return;
 
 
 			using (_log.Trace())
@@ -2216,7 +2218,7 @@ namespace E3Core.Processors
 				if (amIStanding && (autoMedManaPct > 0 || autoMedHealthPct > 0 || autoMedStamPct > 0))
 				{
 
-					if (pctMana < autoMedManaPct && (E3.CurrentClass & Class.ManaUsers) == E3.CurrentClass)
+					if (pctMana < autoMedManaPct && E3.Is(Class.ManaUsers))
 					{
 						MQ.Cmd("/sit");
 						Misc_LastTimeAutoMedHappened = Core.StopWatch.ElapsedMilliseconds;

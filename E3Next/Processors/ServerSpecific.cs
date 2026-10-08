@@ -102,7 +102,7 @@ namespace E3Core.Processors
 						MQ.Delay(500);
 						MQ.Cmd("/alt act 1217");
 						MQ.Delay(500);
-						if (E3.CurrentClass == Class.Bard)
+						if (E3.Is(Class.Bard))
 						{
 							MQ.Delay(5000);
 						}
@@ -137,7 +137,7 @@ namespace E3Core.Processors
 						MQ.Delay(500);
 						MQ.Cmd("/alt act 12620");
 						MQ.Delay(500);
-						if (E3.CurrentClass == Class.Bard)
+						if (E3.Is(Class.Bard))
 						{
 							MQ.Delay(17000);
 						}
@@ -295,7 +295,7 @@ namespace E3Core.Processors
 
 							}
 
-							else if ((my_level > 69) && (E3.CurrentClass == Class.Magician))
+							else if ((my_level > 69) && (E3.Is(Class.Magician)))
 							{
 								MQ.Cmd("/cast \"Summon Muzzle of Mowcha\"");
 
@@ -516,7 +516,7 @@ namespace E3Core.Processors
 
 						}
 
-						else if ((my_level > 69) && (E3.CurrentClass == Class.Magician))
+						else if ((my_level > 69) && (E3.Is(Class.Magician)))
 						{
 							MQ.Cmd("/cast \"Summon Muzzle of Mowcha\"");
 

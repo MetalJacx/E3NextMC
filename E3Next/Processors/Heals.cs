@@ -528,7 +528,7 @@ namespace E3Core.Processors
 		/// <returns>true if a heal is needed, otherwise false</returns>
 		public static bool SomeoneNeedsHealing(Spell spell, Int32 currentMana, Int32 pctMana, bool healIfNeeded = false)
 		{
-			if (!((E3.CurrentClass & Data.Class.Priest) == E3.CurrentClass))
+			if (!E3.Is(Data.Class.Priest))
 			{
 				return false;
 			}

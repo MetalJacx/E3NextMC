@@ -412,7 +412,7 @@ namespace E3Core.Processors
 								if (!String.Equals(spell.CastTarget, spawnsCleanName, StringComparison.OrdinalIgnoreCase)) continue;
 							}
 							//before we try and target/consider, lets make sure noone needs heals.
-							if (Basics.InCombat() && (E3.CurrentClass & Class.Priest) == E3.CurrentClass)
+							if (Basics.InCombat() && E3.Is(Class.Priest))
 							{
 								var currentMana = MQ.Query<int>("${Me.CurrentMana}");
 								var pctMana = MQ.Query<int>("${Me.PctMana}");

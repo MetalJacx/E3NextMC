@@ -649,37 +649,40 @@ namespace E3Core.Utility
 				returnValue = inputSetValue;
 				return returnValue;
 			}
+			//these are all membership/overlap checks (not subset) - a multiclass hybrid should match
+			//every group keyword that applies to any one of their classes, e.g. a Warrior+Cleric
+			//should match both "Tanks" and "Healers" filters, not neither.
 			if (inputs.Contains("Healers", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Priest) == E3.CurrentClass)
+				if (E3.Is(Class.Priest))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Tanks", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Tank) == E3.CurrentClass)
+				if (E3.Is(Class.Tank))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Melee", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Melee) == E3.CurrentClass)
+				if (E3.Is(Class.Melee))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Casters", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Caster) == E3.CurrentClass)
+				if (E3.Is(Class.Caster))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Ranged", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Ranged) == E3.CurrentClass)
+				if (E3.Is(Class.Ranged))
 				{
 					returnValue = inputSetValue;
 				}
@@ -687,28 +690,28 @@ namespace E3Core.Utility
 
 			if (inputs.Contains("Plate", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Plate) == E3.CurrentClass)
+				if (E3.Is(Class.Plate))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Chain", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Chain) == E3.CurrentClass)
+				if (E3.Is(Class.Chain))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Leather", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Leather) == E3.CurrentClass)
+				if (E3.Is(Class.Leather))
 				{
 					returnValue = inputSetValue;
 				}
 			}
 			if (inputs.Contains("Silk", StringComparer.OrdinalIgnoreCase))
 			{
-				if ((E3.CurrentClass & Class.Silk) == E3.CurrentClass)
+				if (E3.Is(Class.Silk))
 				{
 					returnValue = inputSetValue;
 				}
@@ -2469,6 +2472,59 @@ namespace E3Core.Utility
 
 			return className;
 		}
+
+		/// <summary>
+		/// Parses a user-supplied "Class Override" ini value (e.g. "SHD/CLR", "SHD/CLR/NEC", or
+		/// "Shadowknight/Cleric") into a combined Class flags value, for servers where ${Me.Class} is
+		/// wrong or incomplete (custom/multiclass servers). Accepts short or long class names, separated
+		/// by / (also accepts + or , for the same purpose). Composite group names (Tank, Priest, Caster,
+		/// etc.) are rejected since they aren't real playable classes.
+		/// </summary>
+		public static bool TryParseClassOverride(string overrideValue, out Class combined, out string primaryLongClassName)
+		{
+			combined = 0;
+			primaryLongClassName = null;
+			if (String.IsNullOrWhiteSpace(overrideValue))
+			{
+				return false;
+			}
+
+			var tokens = overrideValue.Split(new[] { '/', '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+			foreach (var rawToken in tokens)
+			{
+				string token = rawToken.Trim();
+				if (token.Length == 0) continue;
+
+				string longName;
+				if (!EQClasses._classShortToLong.TryGetValue(token, out longName))
+				{
+					longName = token;
+				}
+
+				Class parsed;
+				if (Enum.TryParse(longName, true, out parsed) && IsSingleClassFlag(parsed))
+				{
+					if (primaryLongClassName == null)
+					{
+						primaryLongClassName = parsed.ToString();
+					}
+					combined |= parsed;
+				}
+				else
+				{
+					MQ.Write($"\ar[E3] Warning: Class Override token '{token}' isn't a recognized class, ignoring it.");
+				}
+			}
+
+			return combined != 0;
+		}
+
+		private static bool IsSingleClassFlag(Class c)
+		{
+			uint v = (uint)c;
+			return v != 0 && (v & (v - 1)) == 0;
+		}
+
 		public static string FormatServerName(string serverName)
 		{
 
