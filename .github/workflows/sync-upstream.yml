@@ -1,0 +1,93 @@
+name: Sync upstream (RekkasGit/E3Next)
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # daily at 13:00 UTC - adjust as you like
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  UPSTREAM_REPO: https://github.com/RekkasGit/E3Next.git
+  UPSTREAM_BRANCH: master
+  BASE_BRANCH: master
+  SYNC_BRANCH: sync/upstream-master
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      merged: ${{ steps.domerge.outputs.merged }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.BASE_BRANCH }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream "$UPSTREAM_REPO"
+
+      - name: Fetch upstream and origin
+        run: |
+          git fetch upstream "$UPSTREAM_BRANCH"
+          git fetch origin "$BASE_BRANCH"
+
+      - name: Check if upstream has anything new
+        id: diffcheck
+        run: |
+          count=$(git rev-list origin/$BASE_BRANCH..upstream/$UPSTREAM_BRANCH --count)
+          echo "Upstream is ahead by $count commit(s)."
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Check for an already-open sync PR
+        id: existingpr
+        if: steps.diffcheck.outputs.count != '0'
+        run: |
+          open=$(gh pr list --head "$SYNC_BRANCH" --state open --json number --jq 'length')
+          echo "Open sync PRs for $SYNC_BRANCH: $open"
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+
+      - name: Dry-run the merge (no changes made)
+        id: mergecheck
+        if: steps.diffcheck.outputs.count != '0' && steps.existingpr.outputs.open == '0'
+        run: |
+          set +e
+          git merge-tree --write-tree origin/$BASE_BRANCH upstream/$UPSTREAM_BRANCH > /tmp/merge-tree.out 2>&1
+          exit_code=$?
+          cat /tmp/merge-tree.out
+          echo "exit=$exit_code" >> "$GITHUB_OUTPUT"
+
+      - name: No conflicts - merge upstream straight into ${{ env.BASE_BRANCH }}
+        id: domerge
+        if: steps.diffcheck.outputs.count != '0' && steps.existingpr.outputs.open == '0' && steps.mergecheck.outputs.exit == '0'
+        run: |
+          git checkout "$BASE_BRANCH"
+          git merge upstream/$UPSTREAM_BRANCH --no-edit -m "Merge upstream $UPSTREAM_REPO ($UPSTREAM_BRANCH) into $BASE_BRANCH"
+          git push origin "$BASE_BRANCH"
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+      - name: Conflicts found - push upstream branch and open a PR for review
+        if: steps.diffcheck.outputs.count != '0' && steps.existingpr.outputs.open == '0' && steps.mergecheck.outputs.exit != '0' && steps.mergecheck.outputs.exit != ''
+        run: |
+          git push origin "upstream/$UPSTREAM_BRANCH:refs/heads/$SYNC_BRANCH" --force
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$SYNC_BRANCH" \
+            --title "Sync upstream RekkasGit/E3Next - manual conflict resolution needed" \
+            --body "Upstream ($UPSTREAM_REPO, branch \`$UPSTREAM_BRANCH\`) is ahead by ${{ steps.diffcheck.outputs.count }} commit(s) that could not be auto-merged into \`$BASE_BRANCH\` cleanly. Resolve the conflicts on this PR (locally: checkout \`$SYNC_BRANCH\`, run \`git merge $BASE_BRANCH\`, fix, push) then merge when ready. This workflow will leave this PR alone on future runs as long as it stays open." \
+            || echo "PR may already exist or failed to create - check manually."
+
+  build:
+    name: Compile after clean sync
+    needs: sync
+    if: needs.sync.outputs.merged == 'true'
+    uses: ./.github/workflows/build-e3next.yml
