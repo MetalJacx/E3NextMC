@@ -122,6 +122,9 @@ namespace E3Core.Settings
 		[INI_Section("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. BRD/PAL/etc for custom servers where Me.Class is wrong)")]
 		public string Misc_ClassOverride = String.Empty;
 
+		[INI_Section("Misc", "Spell Memorize Method (Native/SpellbookUI)")]
+		public string Misc_SpellMemorizeMethod = "Native";
+
 
 		[INI_Section("Misc", "Auto-Forage (On/Off)")]
 		public bool Misc_AutoForage = false;
@@ -942,6 +945,7 @@ namespace E3Core.Settings
 
 			LoadKeyData("Misc", "AutoFood", ParsedData, ref Misc_AutoFoodEnabled);
 			LoadKeyData("Misc", "Class Override (blank=auto detect from Me.Class, or e.g. BRD/PAL/etc for custom servers where Me.Class is wrong)", ParsedData, ref Misc_ClassOverride);
+			LoadKeyData("Misc", "Spell Memorize Method (Native/SpellbookUI)", ParsedData, ref Misc_SpellMemorizeMethod);
 			LoadKeyData("Misc", "Food", ParsedData, ref Misc_AutoFood);
 			LoadKeyData("Misc", "Drink", ParsedData, ref Misc_AutoDrink);
 			LoadKeyData("Misc", "End MedBreak in Combat(On/Off)", ParsedData, ref Misc_EndMedBreakInCombat);
@@ -1656,6 +1660,7 @@ namespace E3Core.Settings
 			section.Keys.AddKey("Remove Torpor After Combat", "On");
 			section.Keys.AddKey("Auto-Forage (On/Off)", "Off");
 			section.Keys.AddKey("Dismount On Interrupt (On/Off)", "On");
+			section.Keys.AddKey("Spell Memorize Method (Native/SpellbookUI)", "Native");
 			section.Keys.AddKey("Delay in MS After CastWindow Drops For Spell Completion", "0");
 			section.Keys.AddKey("If FD stay down (true/false)", "False");
 			section.Keys.AddKey("Debuffs/Dots are visible", "True");

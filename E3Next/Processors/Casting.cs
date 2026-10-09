@@ -1524,13 +1524,29 @@ namespace E3Core.Processors
 			}
 			MQ.Write($"\aySpell not memed, meming \ag{spell.SpellName} \ayin \awGEM:{spell.SpellGem}");
 
-			//this server's /memspell text command does not reliably take - it has to be dragged
-			//from the spellbook window onto the gem slot like a real player would.
-			if (!MemorizeSpellViaSpellbookUI(spell))
+			//default is the native /memspell command. Some servers don't take it reliably, so
+			//"SpellbookUI" is available as an opt-in fallback (set via Misc_SpellMemorizeMethod in the
+			//character ini) that drags the spell from the spellbook window onto the gem slot instead.
+			if (String.Equals(E3.CharacterSettings.Misc_SpellMemorizeMethod, "SpellbookUI", StringComparison.OrdinalIgnoreCase))
 			{
-				//memorize didn't actually take (interrupted, not scribed, window issue, etc.) - don't lie to the cache
-				MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
-				return false;
+				if (!MemorizeSpellViaSpellbookUI(spell))
+				{
+					//memorize didn't actually take (interrupted, not scribed, window issue, etc.) - don't lie to the cache
+					MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
+					return false;
+				}
+			}
+			else
+			{
+				MQ.Cmd($"/memspell {spell.SpellGem} \"{spell.SpellName}\"");
+				MQ.Delay(15000, $"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}}");
+
+				if (!MQ.Query<bool>($"${{Me.Gem[{spell.SpellGem}].Name.Equal[{spell.SpellName}]}}"))
+				{
+					//memorize didn't actually take (interrupted, not scribed, etc.) - don't lie to the cache
+					MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
+					return false;
+				}
 			}
 
 			if (!ignoreWait)
