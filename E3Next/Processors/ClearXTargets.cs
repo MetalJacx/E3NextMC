@@ -143,20 +143,48 @@ namespace E3Core.Processors
 						{
 							MobToAttack = 0;//its dead jim
 						}
-						else if (StickTarget && (!MQ.Query<bool>("${Stick.Active}") || MQ.Query<string>("${Stick.Status}") == "PAUSED"))
+						else if (StickTarget)
 						{
-							//stick got knocked out (fear, knockback, etc) - the initial /stick on engage was a one shot,
-							//so without this we'd stay stuck facing/positioned wrong for the rest of the fight.
-							MQ.Cmd($"/squelch /stick {E3.CharacterSettings.Assist_MeleeStickPoint} {Assist._assistDistance}");
-							if (FaceTarget)
+							bool stickBroken = !MQ.Query<bool>("${Stick.Active}") || MQ.Query<string>("${Stick.Status}") == "PAUSED";
+							//MQ2Stick doesn't always notice a knockback that just shoves us out of range without
+							//otherwise interrupting it, so check distance directly too instead of trusting Stick alone.
+							bool outOfRange = ts.Distance3D > (Assist._assistDistance + 5);
+
+							if (stickBroken || outOfRange)
 							{
-								if (e3util.IsEQLive())
+								if (MQ.Query<bool>("${Me.Rooted}"))
 								{
-									MQ.Cmd("/squelch /face", 500);
+									//can't physically move while rooted - just keep facing so we're ready
+									//to close the gap the instant root clears.
+									if (FaceTarget)
+									{
+										if (e3util.IsEQLive())
+										{
+											MQ.Cmd("/squelch /face", 500);
+										}
+										else
+										{
+											MQ.Cmd("/squelch /face fast");
+										}
+									}
 								}
 								else
 								{
-									MQ.Cmd("/squelch /face fast");
+									//stick got knocked out (fear, knockback, root wearing off, etc) - the initial
+									//stick on engage was a one shot, so without this we'd stay stuck facing/positioned
+									//wrong for the rest of the fight.
+									MQ.Cmd($"/squelch /stick {E3.CharacterSettings.Assist_MeleeStickPoint} {Assist._assistDistance}");
+									if (FaceTarget)
+									{
+										if (e3util.IsEQLive())
+										{
+											MQ.Cmd("/squelch /face", 500);
+										}
+										else
+										{
+											MQ.Cmd("/squelch /face fast");
+										}
+									}
 								}
 							}
 						}
