@@ -14,6 +14,8 @@ namespace E3Core.Processors
         public static Logging _log = E3.Log;
         private static IMQ MQ = E3.MQ;
         private static ISpawns _spawns = E3.Spawns;
+		private static int _lastStickRecovery = 0;
+		private const int StickRecoveryIntervalMs = 1500;
 
 		[ExposedData("ClearXTargets", "Enabled")]
 		public static bool Enabled = false;
@@ -145,13 +147,14 @@ namespace E3Core.Processors
 						}
 						else if (StickTarget)
 						{
-							bool stickBroken = !MQ.Query<bool>("${Stick.Active}") || MQ.Query<string>("${Stick.Status}") == "PAUSED";
-							//MQ2Stick doesn't always notice a knockback that just shoves us out of range without
-							//otherwise interrupting it, so check distance directly too instead of trusting Stick alone.
-							bool outOfRange = ts.Distance3D > (Assist._assistDistance + 5);
+							//throttled so a stick that stays broken can't re-send /stick and /face every tick
+							//(on EQ Live /face blocks for 500ms, which stalls the whole loop and the UI with it).
+							bool stickBroken = unchecked(Environment.TickCount - _lastStickRecovery) > StickRecoveryIntervalMs
+								&& (!MQ.Query<bool>("${Stick.Active}") || MQ.Query<string>("${Stick.Status}") == "PAUSED");
 
-							if (stickBroken || outOfRange)
+							if (stickBroken)
 							{
+								_lastStickRecovery = Environment.TickCount;
 								if (MQ.Query<bool>("${Me.Rooted}"))
 								{
 									//can't physically move while rooted - just keep facing so we're ready
