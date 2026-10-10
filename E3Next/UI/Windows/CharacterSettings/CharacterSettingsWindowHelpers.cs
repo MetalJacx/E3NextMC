@@ -1668,7 +1668,10 @@ namespace E3Core.UI.Windows.CharacterSettings
 				{
 					if (isLocal)
 					{
+						//this runs inline on the main E3 loop, so time it - a long scan here stalls the bot and the UI
+						Int64 catalogStart = Core.StopWatch.ElapsedMilliseconds;
 						ProcessBackground_UpdateLocalPlayer();
+						_log.WriteDelayed($"Local catalog load took {Core.StopWatch.ElapsedMilliseconds - catalogStart}ms on the main loop", Logging.LogLevels.Debug);
 					}
 					else
 					{
