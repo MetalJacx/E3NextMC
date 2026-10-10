@@ -9,6 +9,9 @@ on:
   workflow_dispatch:
   workflow_call:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -38,3 +41,17 @@ jobs:
             E3Next/bin/Release/E3.dll
             E3Next/bin/Release/E3.pdb
           if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          short_sha=$(git rev-parse --short HEAD)
+          gh release create "build-${{ github.run_number }}" \
+            E3Next/bin/Release/E3.dll \
+            E3Next/bin/Release/E3.pdb \
+            --title "Build ${{ github.run_number }} ($short_sha)" \
+            --notes "Automated build from commit ${{ github.sha }}." \
+            --latest
