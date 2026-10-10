@@ -1533,6 +1533,7 @@ namespace E3Core.Processors
 				{
 					//memorize didn't actually take (interrupted, not scribed, window issue, etc.) - don't lie to the cache
 					MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
+					LockGemAfterFailedMem(spell.SpellGem);
 					return false;
 				}
 			}
@@ -1545,6 +1546,7 @@ namespace E3Core.Processors
 				{
 					//memorize didn't actually take (interrupted, not scribed, etc.) - don't lie to the cache
 					MQ.Write($"\arFailed to mem \ag{spell.SpellName} \arin \awGEM:{spell.SpellGem}");
+					LockGemAfterFailedMem(spell.SpellGem);
 					return false;
 				}
 			}
@@ -1574,6 +1576,16 @@ namespace E3Core.Processors
 
 			return true;
 		}
+
+		/// <summary>
+		/// A failed memorize used to leave nothing behind, so the next loop tick tried again immediately -
+		/// each attempt can take seconds of blocking waits. Reuses the gem lockout so a failure backs off.
+		/// </summary>
+		private static void LockGemAfterFailedMem(Int32 gem)
+		{
+			_gemRecastLockForMem[gem] = Core.StopWatch.ElapsedMilliseconds + FailedMemRetryDelayMs;
+		}
+		private const Int64 FailedMemRetryDelayMs = 30000;
 
 		/// <summary>
 		/// Memorizes a spell by dragging it from the spellbook window onto the gem slot,
@@ -1669,9 +1681,12 @@ namespace E3Core.Processors
 				MQ.Delay(100);
 				castWindowWait += 100;
 			}
-			while (MQ.Query<bool>("${Window[CastingWindow].Open}"))
+			//bounded so a casting window that never closes can't hold the main loop (and the UI) forever
+			Int64 memWait = 0;
+			while (MQ.Query<bool>("${Window[CastingWindow].Open}") && memWait < 30000)
 			{
 				MQ.Delay(100);
+				memWait += 100;
 			}
 			MQ.Delay(400);
 
