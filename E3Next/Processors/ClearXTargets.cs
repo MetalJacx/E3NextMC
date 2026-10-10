@@ -139,7 +139,27 @@ namespace E3Core.Processors
                     if (_spawns.TryByID(MobToAttack, out var ts))
                     {
                         //is it still alive?
-                        if (ts.Dead) MobToAttack = 0;//its dead jim
+                        if (ts.Dead)
+						{
+							MobToAttack = 0;//its dead jim
+						}
+						else if (StickTarget && (!MQ.Query<bool>("${Stick.Active}") || MQ.Query<string>("${Stick.Status}") == "PAUSED"))
+						{
+							//stick got knocked out (fear, knockback, etc) - the initial /stick on engage was a one shot,
+							//so without this we'd stay stuck facing/positioned wrong for the rest of the fight.
+							MQ.Cmd($"/squelch /stick {E3.CharacterSettings.Assist_MeleeStickPoint} {Assist._assistDistance}");
+							if (FaceTarget)
+							{
+								if (e3util.IsEQLive())
+								{
+									MQ.Cmd("/squelch /face", 500);
+								}
+								else
+								{
+									MQ.Cmd("/squelch /face fast");
+								}
+							}
+						}
 					}
                     else
                     {

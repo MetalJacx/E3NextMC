@@ -49,9 +49,30 @@ jobs:
         shell: bash
         run: |
           short_sha=$(git rev-parse --short HEAD)
+          prev_tag=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+
+          {
+            echo "## What this fork adds over RekkasGit/E3Next"
+            echo
+            echo "- **Class Override** - run as any class on custom/multiclass-friendly servers where \`Me.Class\` is wrong or restrictive."
+            echo "- **Configurable spell memorize method** - defaults to \`/memspell\`; switchable per-character (Misc_SpellMemorizeMethod) to a spellbook drag fallback for servers where \`/memspell\` is unreliable."
+            echo "- **Accurate spell levels in E3Catalog** - shows each spell's real class-independent level (via \`MinCasterLevel\`) instead of a bogus 255 for spells your live class can't normally learn, plus a \"Hide higher level spells\" filter checkbox."
+            echo "- **Persistent /cleartargets stick** - re-sticks/re-faces automatically if you get knocked off your target (fear, knockback, etc.) instead of only sticking once at engage."
+            echo "- **Auto-synced with upstream** - a scheduled workflow merges fixes from RekkasGit/E3Next automatically, opening a PR instead of guessing if there's a conflict."
+            echo "- **Every build published as a release** - a working E3.dll/E3.pdb is always available here, no need to build from source."
+            echo
+            echo "## Changes in this build"
+            echo
+            if [ -n "$prev_tag" ] && [ "$prev_tag" != "null" ]; then
+              git log --no-merges --pretty=format:"- %s (%h)" "${prev_tag}..HEAD"
+            else
+              git log --no-merges --pretty=format:"- %s (%h)" -20
+            fi
+          } > release_notes.md
+
           gh release create "build-${{ github.run_number }}" \
             E3Next/bin/Release/E3.dll \
             E3Next/bin/Release/E3.pdb \
             --title "Build ${{ github.run_number }} ($short_sha)" \
-            --notes "Automated build from commit ${{ github.sha }}." \
+            --notes-file release_notes.md \
             --latest
