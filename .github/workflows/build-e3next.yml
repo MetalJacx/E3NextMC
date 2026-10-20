@@ -71,7 +71,7 @@ jobs:
             fi
           } > release_notes.md
 
-          gh release create "build-${{ github.run_number }}" \
+          gh release create "build-${{ github.run_number }}-${short_sha}" \
             E3Next/bin/Release/E3.dll \
             E3Next/bin/Release/E3.pdb \
             --title "Build ${{ github.run_number }} ($short_sha)" \
