@@ -526,11 +526,6 @@ namespace E3Core.UI.Windows.Hud
 					data = data.Slice(4);
 					Int32 pctHPs = MemoryMarshal.Read<Int32>(data);
 					data = data.Slice(4);
-					//native can report more slots than XtargetMax (emu clients with extra xtarget slots), grow to fit
-					while (buffState.XTargetInfo.Count < slotNumber)
-					{
-						buffState.XTargetInfo.Add(new TableRow_XTargetInfo(-1, buffState.XTargetInfo.Count + 1));
-					}
 					var slotData = buffState.XTargetInfo[slotNumber - 1];
 					if (mobId > 0)
 					{
