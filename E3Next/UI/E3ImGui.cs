@@ -2867,11 +2867,24 @@ namespace MonoCore
 			{
 				foreach (var pair in RegisteredWindows)
 				{
-					pair.Value.Invoke();
+					//an unhandled exception here goes back into native code and takes the client down with it
+					try
+					{
+						pair.Value.Invoke();
+					}
+					catch (Exception ex)
+					{
+						//only log once per window, otherwise we spam every frame
+						if (_windowsWithErrors.Add(pair.Key))
+						{
+							E3.Log.Write($"ImGui window [{pair.Key}] error: {ex.Message} {ex.StackTrace}", Logging.LogLevels.Error);
+						}
+					}
 				}
 
 			}
 		}
+		private static HashSet<string> _windowsWithErrors = new HashSet<string>();
 		public static ConcurrentDictionary<string, Action> RegisteredWindows = new ConcurrentDictionary<string, Action>();
 
 		//super simple registered method. no unregister, will add one if needed later.
