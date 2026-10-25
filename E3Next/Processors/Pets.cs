@@ -109,7 +109,8 @@ namespace E3Core.Processors
             if (petID == 0 && E3.CharacterSettings.PetSpell.Count > 0)
             {
                 bool castPet = false;
-                //we have no pet, do we have a pet configurd to summon?               
+                Spell petSpell = null;
+                //we have no pet, do we have a pet configurd to summon?
                 foreach (var spell in E3.CharacterSettings.PetSpell)
                 {
 					if (!spell.Enabled) continue;
@@ -125,11 +126,19 @@ namespace E3Core.Processors
                     {
                         Casting.Cast(0, spell);
                         castPet = true;
+                        petSpell = spell;
                         break;
                     }
                 }
                 if(castPet)
                 {
+                    //bards come back from Cast as soon as the cast starts (song handling), and the next
+                    //pet check would /stopsong and recast it, so wait the cast out before looking for the pet
+                    Int64 castDoneBy = Core.StopWatch.ElapsedMilliseconds + (Int64)petSpell.MyCastTime + 3000;
+                    while (Casting.IsCasting() && Core.StopWatch.ElapsedMilliseconds < castDoneBy)
+                    {
+                        MQ.Delay(100);
+                    }
                     //wait for the pet to appear
                     MQ.Delay(1000);
                     petID = MQ.Query<Int32>("${Me.Pet.ID}");
