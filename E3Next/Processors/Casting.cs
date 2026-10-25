@@ -1848,11 +1848,24 @@ namespace E3Core.Processors
 				}
 			}
 
-			//unmem whatever is currently occupying the target gem
-			string currentInGem = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
-			if (!String.IsNullOrEmpty(currentInGem) && currentInGem != "NULL")
+			//the gem bar ignores forget/drop clicks while gems are greyed out from a cast we just finished
+			Int64 cooldownWait = 0;
+			while ((IsCasting() || InGlobalCooldown()) && cooldownWait < 3000)
 			{
-				UnmemGem(slot);
+				MQ.Delay(100);
+				cooldownWait += 100;
+			}
+
+			//unmem whatever is currently occupying the target gem. if it doesn't clear, stop -
+			//dropping onto an occupied gem doesn't take, and clicking it with an empty cursor would cast it.
+			if (!UnmemGem(slot))
+			{
+				MQ.Delay(500);
+				if (!UnmemGem(slot))
+				{
+					MQ.Write($"\arCould not clear \awGEM:{slot} \arto mem {spellName}.");
+					return false;
+				}
 			}
 
 			//confirm its scribed, and find the book slot
@@ -1909,14 +1922,23 @@ namespace E3Core.Processors
 			Int32 slotOnPage = (bookSlot - 1) % perPage;
 			MQ.Cmd($"/notify SpellBookWnd SBW_Spell{slotOnPage} leftmouseup");
 			MQ.Delay(400);
-			MQ.Cmd($"/notify CastSpellWnd CSPW_Spell{slot - 1} leftmouseup");
 
-			//wait for the memorize progress bar to appear, then finish
-			Int64 castWindowWait = 0;
-			while (!MQ.Query<bool>("${Window[CastingWindow].Open}") && castWindowWait < 3000)
+			//the drop sometimes doesn't register and the spell just sits on the cursor, so retry it.
+			//safe to re-click, the gem was confirmed empty above.
+			for (Int32 attempt = 0; attempt < 3; attempt++)
 			{
-				MQ.Delay(100);
-				castWindowWait += 100;
+				MQ.Cmd($"/notify CastSpellWnd CSPW_Spell{slot - 1} leftmouseup");
+
+				//wait for the memorize progress bar to appear
+				Int64 castWindowWait = 0;
+				while (!MQ.Query<bool>("${Window[CastingWindow].Open}") && castWindowWait < 1500)
+				{
+					MQ.Delay(100);
+					castWindowWait += 100;
+				}
+				if (MQ.Query<bool>("${Window[CastingWindow].Open}")) break;
+				string inGem = MQ.Query<string>($"${{Me.Gem[{slot}].Name}}");
+				if (!String.IsNullOrEmpty(inGem) && inGem != "NULL") break;
 			}
 			//bounded so a casting window that never closes can't hold the main loop (and the UI) forever
 			Int64 memWait = 0;
