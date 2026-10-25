@@ -347,7 +347,7 @@ namespace E3Core.Processors
 						return CastReturn.CAST_NOTARGET;
 					}
 				}
-				else if (E3.CurrentClass == Class.Bard && spell.CastType == CastingType.Spell)
+				else if (E3.CurrentClass == Class.Bard && spell.CastType == CastingType.Spell && IsBardSong(spell))
 				{
 					//wait for current song to finish
 					while (IsCasting())
@@ -2028,6 +2028,27 @@ namespace E3Core.Processors
 			MQ.Cmd("/stopcast");
 			//we will get an interrupt event queued up, so we need to clear it out. 
 
+		}
+		private static Dictionary<Int32, bool> _isBardSongCache = new Dictionary<Int32, bool>();
+		/// <summary>
+		/// Songs use the singing/instrument skills. On multiclass servers a bard can also cast normal spells (pets, buffs),
+		/// which have to go through the regular cast path that waits for the cast to finish, not the song path that
+		/// returns as soon as the song starts. If the skill can't be read, treat it as a song like before.
+		/// </summary>
+		public static bool IsBardSong(Data.Spell spell)
+		{
+			if (_isBardSongCache.TryGetValue(spell.SpellID, out var isSong)) return isSong;
+			string skill = MQ.Query<string>($"${{Spell[{spell.SpellID}].Skill}}");
+			if (String.IsNullOrWhiteSpace(skill) || skill == "NULL")
+			{
+				isSong = true;
+			}
+			else
+			{
+				isSong = skill.IndexOf("Sing", StringComparison.OrdinalIgnoreCase) >= 0 || skill.IndexOf("Instrument", StringComparison.OrdinalIgnoreCase) >= 0;
+			}
+			_isBardSongCache[spell.SpellID] = isSong;
+			return isSong;
 		}
 		public static Boolean IsCasting()
 		{
