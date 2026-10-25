@@ -2,6 +2,7 @@
 using E3Core.Classes;
 using E3Core.Data;
 using E3Core.Server;
+using E3Core.Settings;
 using E3Core.UI.Windows.CharacterSettings;
 using E3Core.Utility;
 using MonoCore;
@@ -33,6 +34,8 @@ namespace E3Core.Processors
 		public static Dictionary<Int32, Int64> _gemRecastLockForMem = new Dictionary<int, long>();
 		public static Dictionary<Int32, ResistCounter> ResistCounters = new Dictionary<Int32, ResistCounter>();
 		public static Dictionary<Int32, Int32> _currentSpellGems = new Dictionary<int, int>();
+		//gem -> the spell that was in it before E3 swapped something else in (buffs, etc), so it can be put back
+		private static Dictionary<Int32, GemRestore> _gemsToRestore = new Dictionary<int, GemRestore>();
 
 
 		public static Int64 _currentSpellGemsLastRefresh = 0;
@@ -1668,6 +1671,7 @@ namespace E3Core.Processors
 				}
 			}
 			MQ.Write($"\aySpell not memed, meming \ag{spell.SpellName} \ayin \awGEM:{spell.SpellGem}");
+			string spellInGemBeforeMem = MQ.Query<string>($"${{Me.Gem[{spell.SpellGem}].Name}}");
 
 			//default is the native /memspell command. Some servers don't take it reliably, so
 			//"SpellbookUI" is available as an opt-in fallback (set via Misc_SpellMemorizeMethod in the
@@ -1718,8 +1722,96 @@ namespace E3Core.Processors
 				_currentSpellGems.Add(spell.SpellGem, spell.SpellID);
 			}
 			_currentSpellGems[spell.SpellGem] = spell.SpellID;
+			TrackGemSwap(spell, spellInGemBeforeMem);
 
 			return true;
+		}
+
+		private class GemRestore
+		{
+			public string SpellName;
+			public Int32 SwappedInSpellID;
+			public Int64 LastSwapTime;
+		}
+		private static Int64 _nextGemRestoreCheck = 0;
+		private static Int64 _nextGemRestoreCheckInterval = 1000;
+		//how long a gem has to go without another swap before we put its spell back, so a buff cycle can finish first
+		private const Int64 GemRestoreQuietPeriodMs = 10000;
+
+		/// <summary>
+		/// Remembers the spell that was in a gem the first time E3 mems over it, so Check_RestoreSwappedGems
+		/// can put it back. Further swaps into the same gem keep the original spell as the one to restore.
+		/// </summary>
+		private static void TrackGemSwap(Data.Spell spell, string previousSpellName)
+		{
+			Int32 gem = spell.SpellGem;
+			if (_gemsToRestore.TryGetValue(gem, out var restore))
+			{
+				if (String.Equals(restore.SpellName, spell.SpellName, StringComparison.OrdinalIgnoreCase))
+				{
+					//original spell is back in its gem
+					_gemsToRestore.Remove(gem);
+					return;
+				}
+				restore.SwappedInSpellID = spell.SpellID;
+				restore.LastSwapTime = Core.StopWatch.ElapsedMilliseconds;
+				return;
+			}
+			if (String.IsNullOrEmpty(previousSpellName) || previousSpellName == "NULL") return;
+			if (String.Equals(previousSpellName, spell.SpellName, StringComparison.OrdinalIgnoreCase)) return;
+
+			_gemsToRestore.Add(gem, new GemRestore() { SpellName = previousSpellName, SwappedInSpellID = spell.SpellID, LastSwapTime = Core.StopWatch.ElapsedMilliseconds });
+		}
+
+		/// <summary>
+		/// Re-mems the spell E3 swapped out of a gem (usually to cast a buff) once we are out of combat,
+		/// standing still, and nothing has been swapped into that gem for a little while.
+		/// </summary>
+		[ClassInvoke(Class.All)]
+		public static void Check_RestoreSwappedGems()
+		{
+			if (_gemsToRestore.Count == 0) return;
+			if (!e3util.ShouldCheck(ref _nextGemRestoreCheck, _nextGemRestoreCheckInterval)) return;
+			if (!E3.CharacterSettings.Misc_RestoreSwappedSpellGems)
+			{
+				_gemsToRestore.Clear();
+				return;
+			}
+			if (E3.IsInvis) return;
+			if (Basics.InCombat()) return;
+			if (IsCasting()) return;
+			if (SpellBookWndOpen()) return;
+			if (MQ.Query<bool>("${Me.Feigning}")) return;
+			if (MQ.Query<bool>("${Me.Moving}") || !Movement.StandingStillForTimePeriod(3000)) return;
+
+			foreach (Int32 gem in _gemsToRestore.Keys.ToList())
+			{
+				GemRestore restore = _gemsToRestore[gem];
+				if (Core.StopWatch.ElapsedMilliseconds - restore.LastSwapTime < GemRestoreQuietPeriodMs) continue;
+
+				//gem was changed by something other than us (manual mem, etc) since the swap, leave it alone
+				if (MQ.Query<Int32>($"${{Me.Gem[{gem}].ID}}") != restore.SwappedInSpellID)
+				{
+					_gemsToRestore.Remove(gem);
+					continue;
+				}
+
+				Spell spell = new Spell($"{restore.SpellName}/Gem|{gem}");
+				if (!spell.SpellInBook)
+				{
+					_gemsToRestore.Remove(gem);
+					continue;
+				}
+
+				MQ.Write($"\ayRestoring \ag{restore.SpellName} \ayto \awGEM:{gem}");
+				bool wasSitting = MQ.Query<bool>("${Me.Sitting}");
+				MemorizeSpell(spell, true);
+				if (!wasSitting && MQ.Query<bool>("${Me.Sitting}")) MQ.Cmd("/stand");
+				//already memed in another gem counts as done too
+				if (SpellMemorized(spell)) _gemsToRestore.Remove(gem);
+				//one per pass, memorizing blocks for a while
+				return;
+			}
 		}
 
 		/// <summary>
